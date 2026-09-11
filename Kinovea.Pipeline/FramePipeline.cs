@@ -119,6 +119,8 @@ namespace Kinovea.Pipeline
 
             ringBuffer.SetConsumers(new List<IFrameConsumer>(consumers));
 
+            Interlocked.Exchange(ref drops, 0);
+
             producer.FrameProduced += producer_FrameProduced;
 
             log.DebugFormat("Pipeline connected to producer and consumers.");
@@ -161,7 +163,6 @@ namespace Kinovea.Pipeline
                 // we would like to write to. (= buffer overflow).
                 // Register a frame drop. We'll never get that frame back.
                 Interlocked.Increment(ref drops);
-                log.DebugFormat("Frame drop at {0}", frameCount);
             }
             else
             {

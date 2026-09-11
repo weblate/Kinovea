@@ -1201,6 +1201,7 @@ namespace Kinovea.ScreenManager
             // Compute load (processing time vs frame budget).
             double frameProcessingDuration = 0;
             int backlogValue = 0;
+            long recordingDrops = 0;
             if (recordingMode == CaptureRecordingMode.Camera)
             {
                 // Here we don't report load if not recording as it's non-blocking.
@@ -1213,18 +1214,18 @@ namespace Kinovea.ScreenManager
             {
                 frameProcessingDuration = consumerDelayer.FrameProcessingDuration;
                 backlogValue = consumerDelayer.RecorderBacklog;
+                recordingDrops = consumerDelayer.Drops;
             }
 
             double frameBudget = 1000.0 / pipelineManager.Frequency;
             double loadValue = (frameProcessingDuration / frameBudget) * 100.0;
-            long dropsValue = pipelineManager.Drops;
+            long dropsValue = pipelineManager.Drops + recordingDrops;
 
-            string signal = string.Format(" {0:0.00} fps", pipelineManager.Frequency);
-            string bandwidth = string.Format(" {0:0.00} MB/s", cameraGrabber.LiveDataRate);
-            bandwidth.PadLeft(12);
-            string drops = string.Format(" {0}", dropsValue);
+            string signal = string.Format(" {0,6:0.00} fps", pipelineManager.Frequency);
+            string bandwidth = string.Format("{0:0.00} MB/s", cameraGrabber.LiveDataRate);
             string load = string.Format(" {0:0.00} %", loadValue);
             load.PadLeft(6);
+            string drops = string.Format(" {0}", dropsValue);
             string backlog = string.Format(" {0}", backlogValue);
             
             view.UpdateInfo(signal, bandwidth, load, drops, backlog);

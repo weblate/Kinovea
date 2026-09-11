@@ -20,11 +20,11 @@ namespace Kinovea.ScreenManager
 
         public void UpdateValues(string signal, string bandwidth, string load, string drops, string backlog)
         {
-            lblSignal.Text = string.Format(Languages.ScreenManagerLang.infobar_Signal0, signal);
-            lblBandwidth.Text = string.Format(Languages.ScreenManagerLang.infobar_Throughput0, bandwidth);
+            //lblSignal.Text = string.Format(Languages.ScreenManagerLang.infobar_Signal0, signal);
+            lblSignal.Text = string.Format("Signal:{0} ({1})", signal, bandwidth);
             lblLoad.Text = string.Format(Languages.ScreenManagerLang.infobar_Load0, load);
             lblDrops.Text = string.Format(Languages.ScreenManagerLang.infobar_Drops0, drops);
-            lblBacklog.Text = string.Format("Queue: {0}", backlog);
+            lblBacklog.Text = string.Format("Queue:{0}", backlog);
         }
 
         public void UpdateLoadStatus(LoadStatus status)

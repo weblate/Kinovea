@@ -28,12 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
-      this.lblBandwidth = new System.Windows.Forms.Label();
       this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
       this.btnCameraType = new System.Windows.Forms.Button();
       this.lblSignal = new System.Windows.Forms.Label();
       this.button3 = new System.Windows.Forms.Button();
-      this.button1 = new System.Windows.Forms.Button();
       this.button4 = new System.Windows.Forms.Button();
       this.btnLoadStatus = new System.Windows.Forms.Button();
       this.lblLoad = new System.Windows.Forms.Label();
@@ -44,27 +42,12 @@
       this.flowLayoutPanel1.SuspendLayout();
       this.SuspendLayout();
       // 
-      // lblBandwidth
-      // 
-      this.lblBandwidth.AutoSize = true;
-      this.lblBandwidth.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-      this.lblBandwidth.Font = new System.Drawing.Font("Consolas", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      this.lblBandwidth.Location = new System.Drawing.Point(188, 3);
-      this.lblBandwidth.Margin = new System.Windows.Forms.Padding(3);
-      this.lblBandwidth.Name = "lblBandwidth";
-      this.lblBandwidth.Size = new System.Drawing.Size(139, 13);
-      this.lblBandwidth.TabIndex = 1;
-      this.lblBandwidth.Text = "Bandwidth: 200.00 MB/s";
-      this.lblBandwidth.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-      // 
       // flowLayoutPanel1
       // 
       this.flowLayoutPanel1.BackColor = System.Drawing.Color.Transparent;
       this.flowLayoutPanel1.Controls.Add(this.btnCameraType);
       this.flowLayoutPanel1.Controls.Add(this.lblSignal);
       this.flowLayoutPanel1.Controls.Add(this.button3);
-      this.flowLayoutPanel1.Controls.Add(this.button1);
-      this.flowLayoutPanel1.Controls.Add(this.lblBandwidth);
       this.flowLayoutPanel1.Controls.Add(this.button4);
       this.flowLayoutPanel1.Controls.Add(this.btnLoadStatus);
       this.flowLayoutPanel1.Controls.Add(this.lblLoad);
@@ -121,21 +104,6 @@
       this.button3.TabIndex = 5;
       this.button3.UseVisualStyleBackColor = true;
       // 
-      // button1
-      // 
-      this.button1.BackgroundImage = global::Kinovea.ScreenManager.Properties.Resources.dashboard;
-      this.button1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-      this.button1.FlatAppearance.BorderSize = 0;
-      this.button1.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Transparent;
-      this.button1.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Transparent;
-      this.button1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-      this.button1.Location = new System.Drawing.Point(164, 1);
-      this.button1.Margin = new System.Windows.Forms.Padding(3, 1, 3, 0);
-      this.button1.Name = "button1";
-      this.button1.Size = new System.Drawing.Size(18, 18);
-      this.button1.TabIndex = 0;
-      this.button1.UseVisualStyleBackColor = true;
-      // 
       // button4
       // 
       this.button4.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
@@ -143,7 +111,7 @@
       this.button4.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Transparent;
       this.button4.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Transparent;
       this.button4.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-      this.button4.Location = new System.Drawing.Point(333, 3);
+      this.button4.Location = new System.Drawing.Point(164, 3);
       this.button4.Name = "button4";
       this.button4.Size = new System.Drawing.Size(12, 18);
       this.button4.TabIndex = 7;
@@ -156,7 +124,7 @@
       this.btnLoadStatus.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Transparent;
       this.btnLoadStatus.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
       this.btnLoadStatus.Image = global::Kinovea.ScreenManager.Properties.Resources.load_sun;
-      this.btnLoadStatus.Location = new System.Drawing.Point(351, 0);
+      this.btnLoadStatus.Location = new System.Drawing.Point(182, 0);
       this.btnLoadStatus.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
       this.btnLoadStatus.Name = "btnLoadStatus";
       this.btnLoadStatus.Size = new System.Drawing.Size(18, 18);
@@ -168,7 +136,7 @@
       this.lblLoad.AutoSize = true;
       this.lblLoad.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
       this.lblLoad.Font = new System.Drawing.Font("Consolas", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      this.lblLoad.Location = new System.Drawing.Point(375, 3);
+      this.lblLoad.Location = new System.Drawing.Point(206, 3);
       this.lblLoad.Margin = new System.Windows.Forms.Padding(3);
       this.lblLoad.Name = "lblLoad";
       this.lblLoad.Size = new System.Drawing.Size(73, 13);
@@ -183,7 +151,7 @@
       this.button5.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Transparent;
       this.button5.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Transparent;
       this.button5.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-      this.button5.Location = new System.Drawing.Point(454, 3);
+      this.button5.Location = new System.Drawing.Point(285, 3);
       this.button5.Name = "button5";
       this.button5.Size = new System.Drawing.Size(12, 18);
       this.button5.TabIndex = 9;
@@ -196,7 +164,7 @@
       this.button6.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Transparent;
       this.button6.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
       this.button6.Image = global::Kinovea.ScreenManager.Properties.Resources.drops;
-      this.button6.Location = new System.Drawing.Point(472, 0);
+      this.button6.Location = new System.Drawing.Point(303, 0);
       this.button6.Margin = new System.Windows.Forms.Padding(3, 0, 3, 0);
       this.button6.Name = "button6";
       this.button6.Size = new System.Drawing.Size(18, 18);
@@ -208,7 +176,7 @@
       this.lblDrops.AutoSize = true;
       this.lblDrops.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
       this.lblDrops.Font = new System.Drawing.Font("Consolas", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      this.lblDrops.Location = new System.Drawing.Point(496, 3);
+      this.lblDrops.Location = new System.Drawing.Point(327, 3);
       this.lblDrops.Margin = new System.Windows.Forms.Padding(3);
       this.lblDrops.Name = "lblDrops";
       this.lblDrops.Size = new System.Drawing.Size(55, 13);
@@ -221,7 +189,7 @@
       this.lblBacklog.AutoSize = true;
       this.lblBacklog.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
       this.lblBacklog.Font = new System.Drawing.Font("Consolas", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      this.lblBacklog.Location = new System.Drawing.Point(557, 3);
+      this.lblBacklog.Location = new System.Drawing.Point(388, 3);
       this.lblBacklog.Margin = new System.Windows.Forms.Padding(3);
       this.lblBacklog.Name = "lblBacklog";
       this.lblBacklog.Size = new System.Drawing.Size(67, 13);
@@ -245,9 +213,6 @@
         }
 
         #endregion
-
-        private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.Label lblBandwidth;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
         private System.Windows.Forms.Button btnLoadStatus;
         private System.Windows.Forms.Label lblLoad;

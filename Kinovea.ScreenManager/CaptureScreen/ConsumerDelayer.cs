@@ -25,6 +25,7 @@ namespace Kinovea.ScreenManager
 
         /// <summary>
         /// Duration of the last frame processing in milliseconds.
+        /// Moving average. Updated even outside of recording.
         /// </summary>
         public double FrameProcessingDuration 
         { 
@@ -44,6 +45,19 @@ namespace Kinovea.ScreenManager
                 return Volatile.Read(ref recorderBacklog);
             }
         }
+
+        /// <summary>
+        /// Recording drops.
+        /// Frames that dropped off the delay buffer before recording requested them.
+        /// </summary>
+        public long Drops
+        {
+            get
+            {
+                return Interlocked.Read(ref drops);
+            }
+        }
+
         #endregion
 
         #region Members
@@ -73,6 +87,8 @@ namespace Kinovea.ScreenManager
         private int age;
         private MJPEGWriter writer;
         private int recorderBacklog;
+        private long lastSaved = -1;
+        private long drops = 0;
 
         // Debugging
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -144,6 +160,8 @@ namespace Kinovea.ScreenManager
                 this.age = age;
                 framesToRecord.Clear();
                 Volatile.Write(ref recorderBacklog, 0);
+                Interlocked.Exchange(ref drops, 0);
+
                 acceptRecordingFrames = true;
                 stopRecordingRequested = false;
 
@@ -233,11 +251,6 @@ namespace Kinovea.ScreenManager
                         while (framesToRecord.Count == 0 && !stopRecordingRequested)
                         {
                             Monitor.Wait(recordingSync);
-
-                            if (stopRecordingRequested)
-                            {
-                                log.DebugFormat("Stop recording requested: still in queue: {0}", framesToRecord.Count);
-                            }
                         }
 
                         // When recording stops we flush the remaining frames in the queue.
@@ -251,8 +264,11 @@ namespace Kinovea.ScreenManager
                         Volatile.Write(ref recorderBacklog, framesToRecord.Count);
                     }
 
-                    bool copied = delayer.GetStrong(frameId, delayedFrame);
-                    if (copied)
+                    // Get the frame from the delay buffer and save, outside the lock.
+                    DelayerResult result = delayer.GetStrong(frameId, delayedFrame);
+
+                    // In case of late request we still got the oldest frame of the buffer as fall back.
+                    if (result == DelayerResult.Success || result == DelayerResult.TooLate)
                     {
                         writer.SaveFrame(
                             delayerImageDescriptor.Format, 
@@ -260,6 +276,35 @@ namespace Kinovea.ScreenManager
                             delayedFrame.PayloadLength, 
                             delayerImageDescriptor.TopDown);
                     }
+
+                    // Drop monitoring.
+                    // These are the recording drops, frames that dropped off the delay buffer before we asked for them.
+                    // There are also producer drops, frames that did not make it to the delay buffer because the
+                    // camera-consumer thread was busy moving another frame into the delay buffer.
+                    if (lastSaved >= 0)
+                    {
+                        long missing = delayedFrame.FrameId - lastSaved - 1;
+                        if (missing > 0)
+                        {
+                            //log.DebugFormat("{0} frames dropped off the delay buffer before being saved.", missing);
+                            
+                            Interlocked.Add(ref drops, missing);
+
+                            // Discard all the requests that we already know are not going to be honored.
+                            lock (recordingSync)
+                            {
+                                while (framesToRecord.Count > 0 && framesToRecord.Peek() <= delayedFrame.FrameId)
+                                {
+                                    framesToRecord.Dequeue();
+                                }
+
+                                Volatile.Write(ref recorderBacklog, framesToRecord.Count);
+                            }
+
+                        }
+                    }
+
+                    lastSaved = delayedFrame.FrameId;
                 }
             }
             finally

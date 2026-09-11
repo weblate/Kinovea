@@ -231,7 +231,7 @@ namespace Kinovea.ScreenManager
 
         /// <summary>
         /// Get the frame from `age` frames ago, relatively to the last pushed frame.
-        /// Wait for it if necessary. 
+        /// Or the oldest one if it's no longer in the buffer.
         /// Copy it into the passed buffer.
         /// </summary>
         public bool GetStrongByAge(int age, Frame dst)
@@ -257,16 +257,17 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Get the frame at the passed id.
-        /// Wait for it if necessary.
+        /// Get the frame at the passed id, or the oldest one if it's no longer in the buffer.
         /// Copy it into the passed buffer.
         /// </summary>
-        public bool GetStrong(long id, Frame dst)
+        public DelayerResult GetStrong(long id, Frame dst)
         {
-            Frame frame = Get(id);
+            Frame frame = null;
+            DelayerResult result = Get(id, out frame);
+            
             if (frame == null)
             {
-                return false;
+                return result;
             }
 
             lock (lockerFrame)
@@ -274,7 +275,7 @@ namespace Kinovea.ScreenManager
                 dst.Import(frame);
             }
 
-            return true;
+            return result;
         }
 
         /// <summary>
@@ -424,17 +425,30 @@ namespace Kinovea.ScreenManager
         /// Returns the actual image, not a copy. The caller is responsible for doing its own copy as fast as possible.
         /// If not fast enough, the writer could catch up the reserve capacity and start writing this slot.
         /// </summary>
-        private Frame Get(long id)
+        private DelayerResult Get(long id, out Frame frame)
         {
-            if (id < 0 || !allocated || frames.Count == 0)
+            if (!allocated || frames.Count == 0)
             {
-                return null;
+                frame = null;
+                return DelayerResult.NotAllocated;
             }
 
-            long oldestAvailablePosition = currentPosition - (fullCapacity - 1) + reserveCapacity;
-            long position = Math.Max(id, oldestAvailablePosition);
+            if (id < 0)
+            {
+                frame = null;
+                return DelayerResult.TooSoon;
+            }
 
-            return frames[(int)(position % fullCapacity)];
+            DelayerResult result = DelayerResult.Success;
+            long oldestAvailablePosition = currentPosition - (fullCapacity - 1) + reserveCapacity;
+            if (id < oldestAvailablePosition)
+            {
+                result = DelayerResult.TooLate;
+                id = oldestAvailablePosition;
+            }
+
+            frame = frames[(int)(id % fullCapacity)];
+            return result;
         }
 
         #endregion
