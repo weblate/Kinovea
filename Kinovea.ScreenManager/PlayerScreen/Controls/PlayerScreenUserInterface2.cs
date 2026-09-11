@@ -139,10 +139,8 @@ namespace Kinovea.ScreenManager
                 // This happens only in the context of synching
                 // when the other video changed its speed percentage (user or forced).
                 // We must NOT trigger the SpeedChanged event here, or it will impact the other screen in an infinite loop.
-
                 speedFactor = value * m_FrameServer.Metadata.HighSpeedFactor / 100;
-                sldrSpeed.Value = timeMapper.GetInputFromSpeedFactor(speedFactor);
-                sldrSpeed.Invalidate();
+                sldrSpeed.Update(timeMapper.GetInputFromSpeedFactor(speedFactor));
 
                 // Reset timer with new value.
                 if (isCurrentlyPlaying)
@@ -392,6 +390,7 @@ namespace Kinovea.ScreenManager
         private ToolStripMenuItem mnuDirectTrack = new ToolStripMenuItem();
         private ToolStripMenuItem mnuBackground = new ToolStripMenuItem();
         private ToolStripMenuItem mnuCopyPic = new ToolStripMenuItem();
+        private ToolStripMenuItem mnuCopyTime = new ToolStripMenuItem();
         private ToolStripMenuItem mnuPastePic = new ToolStripMenuItem();
         private ToolStripMenuItem mnuPasteDrawing = new ToolStripMenuItem();
         private ToolStripMenuItem mnuOpenVideo = new ToolStripMenuItem();
@@ -735,7 +734,7 @@ namespace Kinovea.ScreenManager
             UpdateTimebase();
             UpdateInfobar();
 
-            sldrSpeed.Force(timeMapper.GetInputFromSpeedFactor(speedFactor));
+            sldrSpeed.Update(timeMapper.GetInputFromSpeedFactor(speedFactor));
             sldrSpeed.Enabled = true;
 
             if (!recoveredMetadata)
@@ -1302,6 +1301,7 @@ namespace Kinovea.ScreenManager
             mnuDirectTrack.Image = Properties.Drawings.tracking;
             mnuBackground.Image = Properties.Resources.shading;
             mnuCopyPic.Image = Properties.Resources.clipboard_block;
+            mnuCopyTime.Image = Properties.Resources.clipboard_block;
             mnuPastePic.Image = Properties.Drawings.paste;
             mnuPasteDrawing.Image = Properties.Drawings.paste;
             mnuOpenVideo.Image = Properties.Resources.folder;
@@ -1323,6 +1323,7 @@ namespace Kinovea.ScreenManager
             mnuDirectTrack.Click += mnuDirectTrack_Click;
             mnuBackground.Click += mnuBackground_Click;
             mnuCopyPic.Click += (s, e) => { CopyImageToClipboard(); };
+            mnuCopyTime.Click += (s, e) => { CopyTimeToClipboard(); };
             mnuPastePic.Click += mnuPastePic_Click;
             mnuPasteDrawing.Click += mnuPasteDrawing_Click;
             mnuOpenVideo.Click += (s, e) => OpenVideoAsked?.Invoke(this, EventArgs.Empty);
@@ -1681,6 +1682,9 @@ namespace Kinovea.ScreenManager
                     break;
                 case PlayerScreenCommands.CopyImage:
                     CopyImageToClipboard();
+                    break;
+                case PlayerScreenCommands.CopyTime:
+                    CopyTimeToClipboard();
                     break;
                 case PlayerScreenCommands.ToggleDrawingsVisibility:
                     showDrawings = !showDrawings;
@@ -3489,6 +3493,8 @@ namespace Kinovea.ScreenManager
             mnuExportImage.Text = ScreenManagerLang.Generic_SaveImage;
             mnuCopyPic.Text = ScreenManagerLang.mnuCopyImageToClipboard;
             mnuCopyPic.ShortcutKeys = HotkeySettingsManager.GetMenuShortcut("PlayerScreen", "CopyImage");
+            mnuCopyTime.Text = "Copy time";
+            mnuCopyTime.ShortcutKeys = HotkeySettingsManager.GetMenuShortcut("PlayerScreen", "CopyTime");
             mnuPastePic.Text = ScreenManagerLang.mnuPasteImage;
             mnuCloseScreen.Text = ScreenManagerLang.mnuCloseScreen;
             mnuCloseScreen.ShortcutKeys = HotkeySettingsManager.GetMenuShortcut("PlayerScreen", "Close");
@@ -4073,6 +4079,7 @@ namespace Kinovea.ScreenManager
                 mnuBackground,
                 new ToolStripSeparator(),
                 mnuCopyPic,
+                mnuCopyTime,
                 mnuPastePic,
                 mnuPasteDrawing,
                 new ToolStripSeparator(),
@@ -6352,6 +6359,20 @@ namespace Kinovea.ScreenManager
             Clipboard.SetImage(bmp);
             bmp.Dispose();
             AfterExportVideo();
+        }
+
+        private void CopyTimeToClipboard()
+        {
+            if (!m_FrameServer.Loaded || m_FrameServer.CurrentImage == null)
+                return;
+
+            string timecode = m_FrameServer.TimeStampsToTimecode(
+                currentTimestamp, 
+                TimeType.UserOrigin, 
+                timecodeFormat, 
+                true);
+
+            Clipboard.SetText(timecode);
         }
 
         /// <summary>

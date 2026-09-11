@@ -117,6 +117,7 @@ namespace Kinovea.Services
         DeleteDrawing,
         ValidateDrawing,
         CopyImage,
+        CopyTime,
         ToggleDrawingsVisibility,
         ChronometerStartStop,
         ChronometerSplit,

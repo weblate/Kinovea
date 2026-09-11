@@ -6,6 +6,12 @@ using System.Windows.Forms;
 
 namespace Kinovea.Services
 {
+    /// <summary>
+    /// To add a new command:
+    /// 1. Add an enum in CommandEnums.cs.
+    /// 2. Add it to CreateDefaultBindings() below. 
+    /// 3. Add a case to the relevant ExecuteScreenCommand() method.
+    /// </summary>
     public static class HotkeySettingsManager
     {
         #region Properties
@@ -193,6 +199,7 @@ namespace Kinovea.Services
                 make(PlayerScreenCommands.DeleteDrawing, Keys.Delete),
                 make(PlayerScreenCommands.ValidateDrawing, Keys.Enter),
                 make(PlayerScreenCommands.CopyImage, Keys.Control | Keys.Shift | Keys.C),
+                make(PlayerScreenCommands.CopyTime, Keys.None),
                 make(PlayerScreenCommands.ToggleDrawingsVisibility, Keys.None),
                 make(PlayerScreenCommands.ChronometerStartStop, Keys.F5),
                 make(PlayerScreenCommands.ChronometerSplit, Keys.F6),
