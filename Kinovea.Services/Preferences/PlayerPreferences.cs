@@ -276,6 +276,23 @@ namespace Kinovea.Services
             set { timelineJumpLargeUnit = value; Save(); }
         }
 
+        public bool SpeedLabelFactor
+        {
+            get { BeforeRead(); return speedLabelFactor; }
+            set { speedLabelFactor = value; Save(); }
+        }
+        
+        public bool SpeedLabelFramerate
+        {
+            get { BeforeRead(); return speedLabelFramerate; }
+            set { speedLabelFramerate = value; Save(); }
+        }
+
+        public bool SpeedLabelInterval
+        {
+            get { BeforeRead(); return speedLabelInterval; }
+            set { speedLabelInterval = value; Save(); }
+        }
 
         #endregion
 
@@ -326,6 +343,9 @@ namespace Kinovea.Services
         private TimelineJumpUnit timelineJumpSmallUnit = TimelineJumpUnit.Second;
         private float timelineJumpLargeSize = 10f;
         private TimelineJumpUnit timelineJumpLargeUnit = TimelineJumpUnit.SnapPercent;
+        private bool speedLabelFactor = true;
+        private bool speedLabelFramerate = false;
+        private bool speedLabelInterval = false;
         #endregion
 
         private void Save()
@@ -434,6 +454,9 @@ namespace Kinovea.Services
             writer.WriteElementString("TimelineJumpSmallUnit", timelineJumpSmallUnit.ToString());
             writer.WriteElementString("TimelineJumpLargeSize", XmlHelper.WriteFloat(timelineJumpLargeSize));
             writer.WriteElementString("TimelineJumpLargeUnit", timelineJumpLargeUnit.ToString());
+            writer.WriteElementString("SpeedLabelFactor", XmlHelper.WriteBoolean(speedLabelFactor));
+            writer.WriteElementString("SpeedLabelFramerate", XmlHelper.WriteBoolean(speedLabelFramerate));
+            writer.WriteElementString("SpeedLabelInterval", XmlHelper.WriteBoolean(speedLabelInterval));
         }
         
         public void ReadXML(XmlReader reader)
@@ -578,6 +601,15 @@ namespace Kinovea.Services
                         break;
                     case "TimelineJumpLargeUnit":
                         timelineJumpLargeUnit = (TimelineJumpUnit)Enum.Parse(typeof(TimelineJumpUnit), reader.ReadElementContentAsString());
+                        break;
+                    case "SpeedLabelFactor":
+                        speedLabelFactor = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
+                        break;
+                    case "SpeedLabelFramerate":
+                        speedLabelFramerate = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
+                        break;
+                    case "SpeedLabelInterval":
+                        speedLabelInterval = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
                         break;
                     default:
                         reader.ReadOuterXml();

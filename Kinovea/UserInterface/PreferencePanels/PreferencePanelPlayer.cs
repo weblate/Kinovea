@@ -77,6 +77,7 @@ namespace Kinovea.Root
         private bool interactiveFrameTracker;
         private bool syncLockSpeeds;
         private bool syncByMotion;
+        private bool showFramerateInSpeedLabel;
 
         // Jumping
         private float smallJumpSize;
@@ -135,7 +136,8 @@ namespace Kinovea.Root
             enableFrameSkipping = PreferencesManager.PlayerPreferences.EnableFrameSkipping;
             syncByMotion = PreferencesManager.PlayerPreferences.SyncByMotion;
             syncLockSpeeds = PreferencesManager.PlayerPreferences.SyncLockSpeed;
-            
+            showFramerateInSpeedLabel = PreferencesManager.PlayerPreferences.SpeedLabelFramerate;
+
             // Time jump
             smallJumpSize = PreferencesManager.PlayerPreferences.TimelineJumpSmallSize;
             smallJumpUnit = PreferencesManager.PlayerPreferences.TimelineJumpSmallUnit;
@@ -189,11 +191,13 @@ namespace Kinovea.Root
             chkInteractiveTracker.Text = RootLang.dlgPreferences_Player_InteractiveFrameTracker;
             chkLockSpeeds.Text = RootLang.dlgPreferences_Player_SyncLockSpeeds;
             chkSyncByMotion.Text = "Use motion synchronization mode";
+            chkShowFramerate.Text = "Show framerate in speed label";
 
             chkEnableFrameSkipping.Checked = enableFrameSkipping;
             chkInteractiveTracker.Checked = interactiveFrameTracker;
             chkLockSpeeds.Checked = syncLockSpeeds;
             chkSyncByMotion.Checked = syncByMotion;
+            chkShowFramerate.Checked = showFramerateInSpeedLabel;
         }
 
         private void InitPageJumping()
@@ -317,7 +321,12 @@ namespace Kinovea.Root
         {
             syncByMotion = chkSyncByMotion.Checked;
         }
-        
+
+        private void cbShowFramerate_CheckedChanged(object sender, EventArgs e)
+        {
+            showFramerateInSpeedLabel = chkShowFramerate.Checked;
+        }
+
         #endregion
 
         #region Jumping
@@ -463,6 +472,7 @@ namespace Kinovea.Root
             PreferencesManager.PlayerPreferences.InteractiveFrameTracker = interactiveFrameTracker;
             PreferencesManager.PlayerPreferences.SyncLockSpeed = syncLockSpeeds;
             PreferencesManager.PlayerPreferences.SyncByMotion = syncByMotion;
+            PreferencesManager.PlayerPreferences.SpeedLabelFramerate = showFramerateInSpeedLabel;
 
             // Time jump
             PreferencesManager.PlayerPreferences.TimelineJumpSmallSize = smallJumpSize;

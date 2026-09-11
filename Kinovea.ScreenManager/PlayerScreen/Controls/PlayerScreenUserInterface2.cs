@@ -120,7 +120,7 @@ namespace Kinovea.ScreenManager
         {
             get
             {
-                return timeMapper.GetPlaybackFrameInterval(sldrSpeed.Value);
+                return timeMapper.GetRealFrameInterval(sldrSpeed.Value);
             }
         }
 
@@ -2573,16 +2573,27 @@ namespace Kinovea.ScreenManager
         private void UpdateSpeedLabel()
         {
             double speedFactorReal = timeMapper.GetSpeedFactorReal(sldrSpeed.Value);
-            double framerate = timeMapper.GetRealFrameRate(sldrSpeed.Value);
-            string speedLabel = "";
-            if (speedFactorReal < 1.0)
+            double frameInterval = timeMapper.GetRealFrameInterval(sldrSpeed.Value);
+
+            List<string> tokens = new List<string>();
+            if (PreferencesManager.PlayerPreferences.SpeedLabelFactor)
             {
-                speedLabel = string.Format("{0:0}% - {1:0.##} fps", speedFactorReal * 100, framerate);
+                if (speedFactorReal < 1.0)
+                {
+                    tokens.Add(string.Format(" {0:0}% ", speedFactorReal * 100));
+                }
+                else
+                {
+                    tokens.Add(string.Format(" {0:0.#}x ", speedFactorReal));
+                }
             }
-            else
+
+            if (PreferencesManager.PlayerPreferences.SpeedLabelFramerate)
             {
-                speedLabel = string.Format("{0:0.#}x - {1:0.##} fps", speedFactorReal, framerate);
+                tokens.Add(string.Format(" {0:0.##} fps ", 1000.0 / frameInterval));
             }
+
+            string speedLabel = string.Join("|", tokens);
 
             lblSpeedTuner.Text = speedLabel;
         }
@@ -2847,7 +2858,7 @@ namespace Kinovea.ScreenManager
             // The timer itself doesn't need to be high frequency.
             // We translate from elapsed real clock time to elapsed video time based on the playback speed.
             // Cap it at the monitor refresh rate.
-            double playbackFrameInterval = timeMapper.GetPlaybackFrameInterval(sldrSpeed.Value);
+            double playbackFrameInterval = timeMapper.GetRealFrameInterval(sldrSpeed.Value);
             uint refreshInterval = (uint)Math.Round(Math.Max(playbackFrameInterval, (1000.0 / monitorRefreshRate)));
             
             log.DebugFormat("Starting playback on [{0}]. Frame interval:{1:0.000} ms, refresh interval:{2} ms.",

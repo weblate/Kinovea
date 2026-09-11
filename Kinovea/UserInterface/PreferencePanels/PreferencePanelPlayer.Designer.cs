@@ -59,6 +59,7 @@ namespace Kinovea.Root
       this.tabMemory = new System.Windows.Forms.TabPage();
       this.cbCacheInTimeline = new System.Windows.Forms.CheckBox();
       this.tabPlayer = new System.Windows.Forms.TabPage();
+      this.chkShowFramerate = new System.Windows.Forms.CheckBox();
       this.chkInteractiveTracker = new System.Windows.Forms.CheckBox();
       this.chkEnableFrameSkipping = new System.Windows.Forms.CheckBox();
       this.chkSyncByMotion = new System.Windows.Forms.CheckBox();
@@ -221,6 +222,7 @@ namespace Kinovea.Root
       // 
       // tabPlayer
       // 
+      this.tabPlayer.Controls.Add(this.chkShowFramerate);
       this.tabPlayer.Controls.Add(this.chkInteractiveTracker);
       this.tabPlayer.Controls.Add(this.chkEnableFrameSkipping);
       this.tabPlayer.Controls.Add(this.chkSyncByMotion);
@@ -232,9 +234,19 @@ namespace Kinovea.Root
       this.tabPlayer.Text = "Player";
       this.tabPlayer.UseVisualStyleBackColor = true;
       // 
+      // chkShowFramerate
+      // 
+      this.chkShowFramerate.Location = new System.Drawing.Point(20, 75);
+      this.chkShowFramerate.Name = "chkShowFramerate";
+      this.chkShowFramerate.Size = new System.Drawing.Size(369, 20);
+      this.chkShowFramerate.TabIndex = 68;
+      this.chkShowFramerate.Text = "Show frame rate in speed label";
+      this.chkShowFramerate.UseVisualStyleBackColor = true;
+      this.chkShowFramerate.CheckedChanged += new System.EventHandler(this.cbShowFramerate_CheckedChanged);
+      // 
       // chkInteractiveTracker
       // 
-      this.chkInteractiveTracker.Location = new System.Drawing.Point(20, 60);
+      this.chkInteractiveTracker.Location = new System.Drawing.Point(20, 49);
       this.chkInteractiveTracker.Name = "chkInteractiveTracker";
       this.chkInteractiveTracker.Size = new System.Drawing.Size(369, 20);
       this.chkInteractiveTracker.TabIndex = 67;
@@ -256,7 +268,7 @@ namespace Kinovea.Root
       // 
       // chkSyncByMotion
       // 
-      this.chkSyncByMotion.Location = new System.Drawing.Point(20, 135);
+      this.chkSyncByMotion.Location = new System.Drawing.Point(20, 127);
       this.chkSyncByMotion.Name = "chkSyncByMotion";
       this.chkSyncByMotion.Size = new System.Drawing.Size(369, 20);
       this.chkSyncByMotion.TabIndex = 34;
@@ -266,7 +278,7 @@ namespace Kinovea.Root
       // 
       // chkLockSpeeds
       // 
-      this.chkLockSpeeds.Location = new System.Drawing.Point(20, 98);
+      this.chkLockSpeeds.Location = new System.Drawing.Point(20, 101);
       this.chkLockSpeeds.Name = "chkLockSpeeds";
       this.chkLockSpeeds.Size = new System.Drawing.Size(369, 20);
       this.chkLockSpeeds.TabIndex = 33;
@@ -488,7 +500,7 @@ namespace Kinovea.Root
       // 
       // chkEnablePixelFiltering
       // 
-      this.chkEnablePixelFiltering.Location = new System.Drawing.Point(24, 58);
+      this.chkEnablePixelFiltering.Location = new System.Drawing.Point(19, 22);
       this.chkEnablePixelFiltering.Name = "chkEnablePixelFiltering";
       this.chkEnablePixelFiltering.Size = new System.Drawing.Size(369, 20);
       this.chkEnablePixelFiltering.TabIndex = 35;
@@ -499,7 +511,7 @@ namespace Kinovea.Root
       // cmbImageFormats
       // 
       this.cmbImageFormats.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-      this.cmbImageFormats.Location = new System.Drawing.Point(264, 88);
+      this.cmbImageFormats.Location = new System.Drawing.Point(259, 52);
       this.cmbImageFormats.Name = "cmbImageFormats";
       this.cmbImageFormats.Size = new System.Drawing.Size(201, 21);
       this.cmbImageFormats.TabIndex = 34;
@@ -508,7 +520,7 @@ namespace Kinovea.Root
       // lblAspectRatio
       // 
       this.lblAspectRatio.AutoSize = true;
-      this.lblAspectRatio.Location = new System.Drawing.Point(21, 91);
+      this.lblAspectRatio.Location = new System.Drawing.Point(16, 55);
       this.lblAspectRatio.Name = "lblAspectRatio";
       this.lblAspectRatio.Size = new System.Drawing.Size(102, 13);
       this.lblAspectRatio.TabIndex = 33;
@@ -516,7 +528,7 @@ namespace Kinovea.Root
       // 
       // chkDeinterlace
       // 
-      this.chkDeinterlace.Location = new System.Drawing.Point(24, 123);
+      this.chkDeinterlace.Location = new System.Drawing.Point(19, 87);
       this.chkDeinterlace.Name = "chkDeinterlace";
       this.chkDeinterlace.Size = new System.Drawing.Size(369, 20);
       this.chkDeinterlace.TabIndex = 32;
@@ -587,5 +599,6 @@ namespace Kinovea.Root
         private System.Windows.Forms.GroupBox grpShortcut;
         private System.Windows.Forms.ComboBox cbLargeJump;
         private System.Windows.Forms.ComboBox cbSmallJump;
+        private System.Windows.Forms.CheckBox chkShowFramerate;
     }
 }

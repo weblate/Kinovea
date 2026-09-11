@@ -72,9 +72,10 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Returns the frame interval in ms, to be used by the playback timer.
+        /// Returns the frame interval in ms. 
+        /// This should be used by the playback timer.
         /// </summary>
-        public double GetPlaybackFrameInterval(double input)
+        public double GetRealFrameInterval(double input)
         {
             double speedFactor = MapInputReal(input);
             double interval = captureInterval / speedFactor;
