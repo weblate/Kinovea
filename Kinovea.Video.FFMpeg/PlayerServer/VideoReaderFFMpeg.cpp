@@ -2279,6 +2279,14 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
     AVFrame* convertedFrame = av_frame_alloc();
     if (mCopyFilteredFrame)
     {
+        if (!mVideoGeometry->Deinterlacing)
+        {
+            // If the frame is interlaced copy the flag so ffmpeg doesn't complain 
+            // and does the scaling on the fields.
+            convertedFrame->flags = sourceFrame->flags & 
+                (AV_FRAME_FLAG_INTERLACED | AV_FRAME_FLAG_TOP_FIELD_FIRST);
+        }
+
         // Preallocate buffers with packed alignment.
         convertedFrame->format = sConvertPixelFormat;
         convertedFrame->width = mScaledSize.Width;
@@ -2543,29 +2551,13 @@ bool VideoReaderFFMpeg::CreateSwsContext(
 
     int threadCount = 0; // 0 = auto.
     mScalingCtx = sws_alloc_context();
-    
-    //av_opt_set_int(mScalingCtx, "srcw", mVideoCodecCtx->width, 0);
-    //av_opt_set_int(mScalingCtx, "srch", mVideoCodecCtx->height, 0);
-    //av_opt_set_int(mScalingCtx, "src_format", srcPixelFormat, 0);
-    //av_opt_set_int(mScalingCtx, "dstw", dstWidth, 0);
-    //av_opt_set_int(mScalingCtx, "dsth", dstHeight, 0);
-    //av_opt_set_int(mScalingCtx, "dst_format", dstPixelFormat, 0);
     av_opt_set_int(mScalingCtx, "sws_flags", flags, 0);
     av_opt_set_int(mScalingCtx, "threads", threadCount, 0);
-
-    //int res = sws_init_context(mScalingCtx, nullptr, nullptr);
-    //if (res < 0)
-    //{
-    //    LogFFMpegError("sws_init_context", res);
-    //    sws_freeContext(mScalingCtx);
-    //    mScalingCtx = nullptr;
-    //    return false;
-    //}
 
     // Auto initialization. This is always single-threaded.
     //mScalingCtx = sws_getContext(
     //    srcWidth, srcHeight, srcPixelFormat,
-    //dstWidth, dstHeight, dstPixelFormat,
+    //    dstWidth, dstHeight, dstPixelFormat,
     //    flags, nullptr, nullptr, nullptr);
 
     // Remember the settings to detect if we need to recreate the context.
