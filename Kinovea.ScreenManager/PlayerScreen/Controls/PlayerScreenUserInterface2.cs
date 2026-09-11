@@ -2093,17 +2093,25 @@ namespace Kinovea.ScreenManager
             switch (unit)
             {
                 case TimelineJumpUnit.Second:
-                    deltaTimestamps = value * m_FrameServer.VideoReader.Info.AverageTimeStampsPerSeconds;
+                {
+                    double seconds = value * m_FrameServer.Metadata.HighSpeedFactor;
+                    deltaTimestamps = seconds * m_FrameServer.VideoReader.Info.AverageTimeStampsPerSeconds;
                     unitStr = "s";
                     break;
+                }
                 case TimelineJumpUnit.Millisecond:
-                    deltaTimestamps = (value / 1000) * m_FrameServer.VideoReader.Info.AverageTimeStampsPerSeconds;
+                {
+                    double seconds = (value / 1000) * m_FrameServer.Metadata.HighSpeedFactor;
+                    deltaTimestamps = seconds * m_FrameServer.VideoReader.Info.AverageTimeStampsPerSeconds;
                     unitStr = "ms";
                     break;
+                }
                 case TimelineJumpUnit.Frame:
+                {
                     deltaTimestamps = Math.Ceiling(value) * m_FrameServer.VideoReader.Info.AverageTimeStampsPerFrame;
                     unitStr = "f";
                     break;
+                }
             }
 
             long newTimestamp = (long)Math.Round(currentTimestamp + (sign * deltaTimestamps));
