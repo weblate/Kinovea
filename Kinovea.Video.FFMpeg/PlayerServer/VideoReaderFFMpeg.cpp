@@ -477,7 +477,11 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
             }
             else
             {
-                videoCodecCtx->thread_count = 1;
+                // Do not force thread count to 1 here.
+                // ffmpeg will pass the value to the decoder and the decoder 
+                // will decide by itself, this is relevant for decoders 
+                // implement via external libraries like libdav1d.
+                videoCodecCtx->thread_count = 0;
             }
         }
     }
