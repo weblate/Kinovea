@@ -257,18 +257,34 @@ namespace Kinovea.ScreenManager
 
             input = Math.Min(Math.Max(input, 0), maxInput);
 
-            double pivotValue = MapSpeedFactor(realtimeFactor);
-            pivotValue = Math.Min(pivotValue, maxInput);
-
             double maxFactorReal = maxFactor / realtimeFactor;
+
+            // pivot value is allowed to go over the max.
+            // example: video at 25 fps, captured at 500 fps.
+            // realtime factor = 20x, pivot value = 2000.
+            // If the input is 500, we should map it to 0.25x, not 0.5x.
+            double pivotValue = realtimeFactor > maxFactor ? 
+                maxInput / maxFactorReal : 
+                MapSpeedFactor(realtimeFactor);
 
             if (input < pivotValue)
             {
                 double inputNormalized = input / pivotValue;
                 return Math.Max(inputNormalized, safeMinFactor);
             }
+            else if (input == maxInput)
+            {
+                return maxFactorReal;
+            }
             else
             {
+                // If pivotValue is exactly maxInput, we should have gone to the other branch
+                // since all values should be below the midpoint.
+                if (maxInput <= pivotValue)
+                {
+                    return maxFactorReal;
+                }
+
                 double inputNormalized = (input - pivotValue) / (maxInput - pivotValue);
                 double result = 1.0 + (inputNormalized * (maxFactorReal - 1.0));
                 return result;
@@ -287,17 +303,30 @@ namespace Kinovea.ScreenManager
 
             speedFactorReal = Math.Min(Math.Max(speedFactorReal, 0), maxFactorReal);
 
-            double pivotInput = MapSpeedFactor(realtimeFactor);
-            
+            double pivotValue = realtimeFactor > maxFactor ?
+                maxInput / maxFactorReal :
+                MapSpeedFactor(realtimeFactor);
+
             if (speedFactorReal < 1.0)
             {
-                double result = speedFactorReal * pivotInput;
+                double result = speedFactorReal * pivotValue;
                 return Math.Max(result, safeMinFactor);
+            }
+            else if (speedFactorReal == maxFactorReal)
+            {
+                return maxInput;
             }
             else
             {
+                // If maxFactorReal is exactly 1 or less, we should have gone to the other branch
+                // since all values should be below the midpoint.
+                if (maxFactorReal <= 1.0)
+                {
+                    return maxInput;
+                }
+
                 double speedFactorNormalized = (speedFactorReal - 1.0) / (maxFactorReal - 1.0);
-                double result = pivotInput + (speedFactorNormalized * (maxInput - pivotInput));
+                double result = pivotValue + (speedFactorNormalized * (maxInput - pivotValue));
                 return Math.Max(result, safeMinInput);
             }
         }
