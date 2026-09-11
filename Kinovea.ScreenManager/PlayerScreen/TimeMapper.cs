@@ -122,7 +122,7 @@ namespace Kinovea.ScreenManager
         /// </summary>
         public double GetInputForNominalSpeed()
         {
-            return MapSpeedFactor(captureInterval / userInterval);
+            return MapSpeedFactorReal(captureInterval / userInterval);
         }
 
         /// <summary>
