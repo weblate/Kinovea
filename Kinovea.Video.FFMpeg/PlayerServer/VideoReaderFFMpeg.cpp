@@ -2899,6 +2899,8 @@ void VideoReaderFFMpeg::UpdateFrameSkippingPolicy()
                 {
                     avcodec_flush_buffers(mVideoCodecCtx);
                     mCachedTimestamp = AV_NOPTS_VALUE;
+                    mPreviousDecodedTimestamp = AV_NOPTS_VALUE;
+                    mDecodedTimestamp = AV_NOPTS_VALUE;
                     mCurrentGopTimestamp = AV_NOPTS_VALUE;
                 }
             }
