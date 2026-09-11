@@ -2903,8 +2903,16 @@ namespace Kinovea.ScreenManager
                 refreshInterval);
 
             SubmitPlaybackRequest(state);
-            
-            currentTimestamp = m_FrameServer.VideoReader.Current.Timestamp;
+
+            if (m_FrameServer.VideoReader.Current != null)
+            {
+                currentTimestamp = m_FrameServer.VideoReader.Current.Timestamp;
+            }
+            else
+            {
+                currentTimestamp = startTimestamp;
+            }
+
 
             // Publish the sync mark for both player and decoder to independently compute elapsed time.
             m_FrameServer.VideoReader.StartPlaybackEpoch = Stopwatch.GetTimestamp();

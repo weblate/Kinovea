@@ -1274,8 +1274,18 @@ void VideoReaderFFMpeg::WorkingZoneUpdateRequest(WorkingZoneRequest^ request, Ac
         // Acquire the target and get the resolved value.
         // The end frame stays in "request" space.
         mPreBuffer->AcquireClosest(target);
-        int64_t resolvedTarget = mPreBuffer->CurrentFrame->Timestamp;
-        mWorkingZone = VideoSection(resolvedTarget, request->WorkingZone.End);
+        if (!mPreBuffer->CurrentFrame)
+        {
+            // Something went wrong. 
+            // For example YADIF deinterlacer needs two frames to work so after decoding the first 
+            // frame on the main thread there is still nothing in the cache.
+            mWorkingZone = request->WorkingZone;
+        }
+        else
+        {
+            int64_t resolvedTarget = mPreBuffer->CurrentFrame->Timestamp;
+            mWorkingZone = VideoSection(resolvedTarget, request->WorkingZone.End);
+        }
     }
     else
     {
@@ -2234,6 +2244,11 @@ int VideoReaderFFMpeg::SeekTo(int64_t targetTimestamp)
     mPreviousDecodedTimestamp = AV_NOPTS_VALUE;
     mDecodedTimestamp = AV_NOPTS_VALUE;
     mCurrentGopTimestamp = AV_NOPTS_VALUE;
+
+    // Make sure we recreate the filter graph.
+    // This is necessary for YADIF for example, which keeps internal frames and will
+    // output garbage if we don't reset it after a seek.
+    mShouldResetFilterGraph = true;
     return res;
 }
 
@@ -2578,7 +2593,7 @@ bool VideoReaderFFMpeg::RescaleAndConvert2(AVFrame* srcFrame, AVFrame* dstFrame,
     const AVPixelFormat srcPixelFormat = static_cast<AVPixelFormat>(srcFrame->format);
     
     // Recreate the graph if needed.
-    if (!mFilterGraph ||
+    if (!mFilterGraph || mShouldResetFilterGraph ||
         mMemoSrcWidth != srcWidth || mMemoSrcHeight != srcHeight || mMemoSrcFormat != srcPixelFormat ||
         mMemoDstWidth != dstWidth || mMemoDstHeight != dstHeight ||
         mMemoDeinterlace != deinterlace)
@@ -2594,6 +2609,8 @@ bool VideoReaderFFMpeg::RescaleAndConvert2(AVFrame* srcFrame, AVFrame* dstFrame,
             log->Error("RescaleAndConvert: CreateVideoFilterGraph failed.");
             return false;
         }
+
+        mShouldResetFilterGraph = false;
     }
 
     // Feed the decoded frame to libavfilter.
@@ -3264,6 +3281,7 @@ void VideoReaderFFMpeg::UpdateFrameSkippingPolicy()
                     mPreviousDecodedTimestamp = AV_NOPTS_VALUE;
                     mDecodedTimestamp = AV_NOPTS_VALUE;
                     mCurrentGopTimestamp = AV_NOPTS_VALUE;
+                    mShouldResetFilterGraph = true;
                 }
             }
 
