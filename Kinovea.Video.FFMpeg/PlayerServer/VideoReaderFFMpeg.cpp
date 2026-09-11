@@ -2288,6 +2288,14 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
     // but the download of the frame from the GPU to the CPU is smaller.
     //--------------------------------------
 
+    //----------------------------------------
+    // AVFrame ownership.
+    // - decodedFrame: owned by the caller, reused during seeking until we reach target, 
+    // then freeed after conversion when this function returns.
+    // - hwScaledFrame: owned by this function, freed after conversion to software frame.
+    // - convertedFrame: buffer owned by the bitmap in .Tag after conversion, freed below.
+    // - softwareFrame: reusable. unref before each download in GetSoftwareFrame.
+
     
     bool isHardwareDecoding = decodedFrame->format == mHwPixelFormat && decodedFrame->hw_frames_ctx != nullptr;
     
@@ -2310,6 +2318,7 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
             // the normal sws_scale_frame. Since we use the dynamic API, it will see 
             // that the frame is already at the target size and will skip the scaling step.
             frameToConvert = GetSoftwareFrame(hwScaledFrame);
+            av_frame_free(&hwScaledFrame);
         }
         else
         {
@@ -2604,18 +2613,12 @@ AVFrame* VideoReaderFFMpeg::ScaleHardwareFrame(AVFrame* srcFrame)
     }
 
     // Retrieve the processed frame.
-    //av_frame_unref(mHwScaledFrame);
     ret = av_buffersink_get_frame(mSinkFilterCtx, hwScaledFrame);
     if (ret < 0)
     {
         LogFFMpegError("av_buffersink_get_frame", ret);
     }
 
-    // expected:
-    //mHwScaledFrame->format == AV_PIX_FMT_D3D11
-    //mHwScaledFrame->width == dstWidth
-    //mHwScaledFrame->height == dstHeight
-    //mHwScaledFrame->hw_frames_ctx != nullptr
     return hwScaledFrame;
 }
 
