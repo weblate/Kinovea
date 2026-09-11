@@ -322,7 +322,6 @@ namespace Kinovea.Video
         /// <summary>
         /// Check if all the frames in the cache form a contiguous sequence.
         /// </summary>
-        /// <returns></returns>
         public bool IsContiguous()
         {
             lock (sync)
@@ -451,12 +450,19 @@ namespace Kinovea.Video
                 // Do the normal eviction of old frames outside the retention window.
                 // Note that we do this even if the target wasn't acquired.
                 removed = EvictBehind(index, framesToKeepBehind);
+
+                // Evict anything around the target that is not contiguous with the rest of the cache, 
+                // and only retain at most framesToKeepBehind frames before the target.
+                //removed = EvictNonContiguous(index, framesToKeepBehind);
+                
+                
                 if (removed != null)
                 {
                     UpdateCacheSnapshot();
                 }
 
-                result = new TryAcquireResult(targetAcquired, acquiredTimestamp);
+                bool isContiguous = IsContiguous();
+                result = new TryAcquireResult(targetAcquired, acquiredTimestamp, isContiguous);
             }
 
             if (removed != null)
@@ -716,6 +722,69 @@ namespace Kinovea.Video
             }
 
             //log.DebugFormat("EvictBehind evicted {0} frames. Cached: {1}.", removed.Count, frames.Count);
+            return removed;
+        }
+
+
+        /// <summary>
+        /// Evicts: anything before the first contiguous frame before pivot, 
+        /// and anything after the last contiguous frame after pivot, 
+        /// and retains at most framesToKeep before pivot.
+        /// Never evicts current.
+        /// Must be called from inside the lock.
+        /// Returns the removed frames.
+        /// </summary>
+        private List<VideoFrame> EvictNonContiguous(int pivotIndex, int framesToKeep)
+        {
+            if (frames.Count < 2)
+                return null;
+
+            // Go backwards from pivot to find the first non-contiguous frame.
+            int contiguousBehind = pivotIndex;
+            for (int i = pivotIndex - 1; i >= 0; i--)
+            {
+                if (frames.Values[i + 1].PreviousTimestamp != frames.Values[i].Timestamp)
+                {
+                    contiguousBehind = i + 1;
+                    break;
+                }
+            }
+
+            // Go forwards from pivot to find the first non-contiguous frame.
+            int contiguousAhead = pivotIndex;
+            for (int i = pivotIndex + 1; i < frames.Count; i++)
+            {
+                if (frames.Values[i].PreviousTimestamp != frames.Values[i - 1].Timestamp)
+                {
+                    contiguousAhead = i - 1;
+                    break;
+                }
+            }
+
+            // Retain at most framesToKeep behind the pivot.
+            int retainFrom = Math.Max(contiguousBehind, pivotIndex - framesToKeep);
+
+            // Remove frames before retainFrom.
+            List<VideoFrame> removed = new List<VideoFrame>();
+            for (int i = retainFrom - 1; i >= 0; i--)
+            {
+                VideoFrame frame = frames.Values[i];
+                if (ReferenceEquals(frame, current))
+                    continue;
+                frames.RemoveAt(i);
+                removed.Add(frame);
+            }
+
+            // Remove frames after contiguousAhead.
+            for (int i = frames.Count - 1; i > contiguousAhead; i--)
+            {
+                VideoFrame frame = frames.Values[i];
+                if (ReferenceEquals(frame, current))
+                    continue;
+                frames.RemoveAt(i);
+                removed.Add(frame);
+            }
+
             return removed;
         }
 

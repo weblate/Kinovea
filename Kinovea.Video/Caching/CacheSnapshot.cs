@@ -34,5 +34,16 @@ namespace Kinovea.Video
         {
             return new CacheSnapshot(-1, new VideoSection[0]);
         }
+
+        public override string ToString()
+        {
+            // Print all the sections.
+            StringBuilder sb = new StringBuilder();
+            foreach (var section in Sections)
+            {
+                sb.AppendFormat("[{0};{1}] ", section.Start, section.End);
+            }
+            return sb.ToString();
+        }
     }
 }

@@ -19,17 +19,25 @@ namespace Kinovea.Video
         /// </summary>
         public long AcquiredTimestamp { get; }
 
+        /// <summary>
+        /// Whether the cache is contiguous and can be used for 
+        /// timestamp based requests.
+        /// </summary>
+        public bool IsContiguous { get; }
+
         public TryAcquireResult(
             bool targetAcquired, 
-            long acquiredTimestamp)
+            long acquiredTimestamp,
+            bool isContiguous)
         {
             TargetAcquired = targetAcquired;
             AcquiredTimestamp = acquiredTimestamp;
+            IsContiguous = isContiguous;
         }
 
         public static TryAcquireResult MakeEmpty()
         {
-            return new TryAcquireResult(false, -1);
+            return new TryAcquireResult(false, -1, false);
         }
     }
 }

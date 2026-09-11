@@ -716,7 +716,7 @@ bool VideoReaderFFMpeg::PlayerRequest(PlayerState^ newState)
     if (mRequestedPlayerState->SynchronousFulfill)
     {
         // The relocation of the decoder must happen here before returning.
-        log->DebugFormat("Cache contiguity: {0}.", mPreBuffer->IsContiguous());
+        log->DebugFormat("Cache contiguity: {0}.", result->IsContiguous);
         
         if (acquired)
         {
@@ -3074,6 +3074,7 @@ DecodingJobPlan^ VideoReaderFFMpeg::GetDecodingJobPlan(PlayerState^ state, TryAc
     // Grab the results of the initial request handling from the cache side.
     bool isAcquired = tryAcquireResult->TargetAcquired;
     int64_t acquiredTimestamp = tryAcquireResult->AcquiredTimestamp;
+    bool isContiguous = tryAcquireResult->IsContiguous;
     
     // Some useful variables for all scenarios.
     bool hasPending = mPendingFrame != nullptr;
@@ -3099,11 +3100,29 @@ DecodingJobPlan^ VideoReaderFFMpeg::GetDecodingJobPlan(PlayerState^ state, TryAc
         {
             targetTimestamp = state->ReferenceTimestamp + mVideoInfo.AverageTimeStampsPerFrame;
             plan->TargetTimestamp = targetTimestamp;
+
+            if (!isContiguous)
+            {
+                log->DebugFormat("DecodingJobPlan: Non-contiguous step forward. Seeking.");
+                DisposePending();
+                mPreBuffer->Purge();
+                plan->DecoderRelocation = DecoderRelocation::Seek;
+                return plan;
+            }
         }
         else if (state->Action == PlayerAction::StepBackward)
         {
             targetTimestamp = state->ReferenceTimestamp - mVideoInfo.AverageTimeStampsPerFrame;
             plan->TargetTimestamp = targetTimestamp;
+
+            if (!isContiguous)
+            {
+                log->DebugFormat("DecodingJobPlan: Non-contiguous step backward. Seeking.");
+                DisposePending();
+                mPreBuffer->Purge();
+                plan->DecoderRelocation = DecoderRelocation::Seek;
+                return plan;
+            }
         }
     }
 
@@ -3342,20 +3361,12 @@ void VideoReaderFFMpeg::ExecuteDecodingJobPlan(PlayerState^ state, DecodingJobPl
     // 
     // The first thing we need to handle is the pending frame if any.
     // Then we move to the target.
-    // While moving towards the target we might want to add the last 
-    // few frames to pre-fill the back part of the cache.
+    // While moving towards the target we preroll the "behind" part of the cache.
     // 
     // Just because the target was acquired during preparation doesn't mean 
     // we don't have to move the decoder.
     // We might be behind the target and need to advance.
     
-
-    // Double check in case the target was decoded/stored during preparation.
-    // Case 1: we managed to add it to the cache.
-    // Case 2: it was the pending frame.
-    // TODO: move this back with the other case in GetDecodingJobPlan().
-    
-
     if (plan->DecoderRelocation == DecoderRelocation::Seek)
     {
         log->DebugFormat("ExecuteDecodingJobPlan: seeking to [~{0}].", plan->TargetTimestamp);
