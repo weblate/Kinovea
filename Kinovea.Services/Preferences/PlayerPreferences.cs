@@ -257,35 +257,30 @@ namespace Kinovea.Services
             set { enableFrameSkipping = value; Save(); }
         }
 
-        public TimelineJumpType TimelineJumpType
+        public float TimelineJumpSmallSize
         {
-            get { BeforeRead(); return timelineJumpType; }
-            set { timelineJumpType = value; Save(); }
+            get { BeforeRead(); return timelineJumpSmallSize; }
+            set { timelineJumpSmallSize = value; Save(); }
         }
 
-        public int TimelineJumpSmallSteps
+        public TimelineJumpUnit TimelineJumpSmallUnit
         {
-            get { BeforeRead(); return timelineJumpSmallSteps; }
-            set { timelineJumpSmallSteps = value; Save(); }
-        }
-        
-        public int TimelineJumpLargeSteps
-        {
-            get { BeforeRead(); return timelineJumpLargeSteps; }
-            set { timelineJumpLargeSteps = value; Save(); }
+            get { BeforeRead(); return timelineJumpSmallUnit; }
+            set { timelineJumpSmallUnit = value; Save(); }
         }
 
-        public float TimelineJumpSmallJump
+        public float TimelineJumpLargeSize
         {
-            get { BeforeRead(); return timelineJumpSmallJump; }
-            set { timelineJumpSmallJump = value; Save(); }
+            get { BeforeRead(); return timelineJumpLargeSize; }
+            set { timelineJumpLargeSize = value; Save(); }
         }
 
-        public float TimelineJumpLargeJump
+        public TimelineJumpUnit TimelineJumpLargeUnit
         {
-            get { BeforeRead(); return timelineJumpLargeJump; }
-            set { timelineJumpLargeJump = value; Save(); }
+            get { BeforeRead(); return timelineJumpLargeUnit; }
+            set { timelineJumpLargeUnit = value; Save(); }
         }
+
 
         #endregion
 
@@ -333,11 +328,10 @@ namespace Kinovea.Services
         private bool showCacheInTimeline = false;
         private bool sideBySideHorizontal = true;
         private bool enableFrameSkipping = true;
-        private TimelineJumpType timelineJumpType = TimelineJumpType.Relative;
-        private int timelineJumpSmallSteps = 100;
-        private int timelineJumpLargeSteps = 10;
-        private float timelineJumpSmallJump = 1f;
-        private float timelineJumpLargeJump = 10f;
+        private float timelineJumpSmallSize = 0.5f;
+        private TimelineJumpUnit timelineJumpSmallUnit = TimelineJumpUnit.Second;
+        private float timelineJumpLargeSize = 10f;
+        private TimelineJumpUnit timelineJumpLargeUnit = TimelineJumpUnit.SnapPercent;
         #endregion
 
         private void Save()
@@ -443,11 +437,10 @@ namespace Kinovea.Services
             writer.WriteElementString("SideBySideHorizontal", XmlHelper.WriteBoolean(sideBySideHorizontal));
             writer.WriteElementString("EnableFrameSkipping", XmlHelper.WriteBoolean(enableFrameSkipping));
 
-            writer.WriteElementString("TimelineJumpType", timelineJumpType.ToString());
-            writer.WriteElementString("TimelineJumpSmallSteps", timelineJumpSmallSteps.ToString());
-            writer.WriteElementString("TimelineJumpLargeSteps", timelineJumpLargeSteps.ToString());
-            writer.WriteElementString("TimelineJumpSmallJump", XmlHelper.WriteFloat(timelineJumpSmallJump));
-            writer.WriteElementString("TimelineJumpLargeJump", XmlHelper.WriteFloat(timelineJumpLargeJump));
+            writer.WriteElementString("TimelineJumpSmallSize", XmlHelper.WriteFloat(timelineJumpSmallSize));
+            writer.WriteElementString("TimelineJumpSmallUnit", timelineJumpSmallUnit.ToString());
+            writer.WriteElementString("TimelineJumpLargeSize", XmlHelper.WriteFloat(timelineJumpLargeSize));
+            writer.WriteElementString("TimelineJumpLargeUnit", timelineJumpLargeUnit.ToString());
         }
         
         public void ReadXML(XmlReader reader)
@@ -585,20 +578,17 @@ namespace Kinovea.Services
                     case "EnableFrameSkipping":
                         enableFrameSkipping = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
                         break;
-                    case "TimelineJumpType":
-                        timelineJumpType = (TimelineJumpType)Enum.Parse(typeof(TimelineJumpType), reader.ReadElementContentAsString());
+                    case "TimelineJumpSmallSize":
+                        timelineJumpSmallSize = XmlHelper.ParseFloat(reader.ReadElementContentAsString());
                         break;
-                    case "TimelineJumpSmallSteps":
-                        timelineJumpSmallSteps = reader.ReadElementContentAsInt();
+                    case "TimelineJumpSmallUnit":
+                        timelineJumpSmallUnit = (TimelineJumpUnit)Enum.Parse(typeof(TimelineJumpUnit), reader.ReadElementContentAsString());
                         break;
-                    case "TimelineJumpLargeSteps":
-                        timelineJumpLargeSteps = reader.ReadElementContentAsInt();
+                    case "TimelineJumpLargeSize":
+                        timelineJumpLargeSize = XmlHelper.ParseFloat(reader.ReadElementContentAsString());
                         break;
-                    case "TimelineJumpSmallJump":
-                        timelineJumpSmallJump = XmlHelper.ParseFloat(reader.ReadElementContentAsString());
-                        break;
-                    case "TimelineJumpLargeJump":
-                        timelineJumpLargeJump = XmlHelper.ParseFloat(reader.ReadElementContentAsString());
+                    case "TimelineJumpLargeUnit":
+                        timelineJumpLargeUnit = (TimelineJumpUnit)Enum.Parse(typeof(TimelineJumpUnit), reader.ReadElementContentAsString());
                         break;
                     default:
                         reader.ReadOuterXml();

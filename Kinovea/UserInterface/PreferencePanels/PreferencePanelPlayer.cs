@@ -79,11 +79,11 @@ namespace Kinovea.Root
         private bool syncByMotion;
 
         // Jumping
-        private TimelineJumpType jumpType;
-        private int smallSteps;
-        private int largeSteps;
-        private float smallJump;
-        private float largeJump;
+        private float smallJumpSize;
+        private TimelineJumpUnit smallJumpUnit;
+        private float largeJumpSize;
+        private TimelineJumpUnit largeJumpUnit;
+
         private List<HotkeyCommand> hotkeys;
         private string category = "PlayerScreen";
         private string selectedCommand;
@@ -136,12 +136,11 @@ namespace Kinovea.Root
             syncByMotion = PreferencesManager.PlayerPreferences.SyncByMotion;
             syncLockSpeeds = PreferencesManager.PlayerPreferences.SyncLockSpeed;
             
-            // Jumping
-            jumpType = PreferencesManager.PlayerPreferences.TimelineJumpType;
-            smallSteps = PreferencesManager.PlayerPreferences.TimelineJumpSmallSteps;
-            largeSteps = PreferencesManager.PlayerPreferences.TimelineJumpLargeSteps;
-            smallJump = PreferencesManager.PlayerPreferences.TimelineJumpSmallJump;
-            largeJump = PreferencesManager.PlayerPreferences.TimelineJumpLargeJump;
+            // Time jump
+            smallJumpSize = PreferencesManager.PlayerPreferences.TimelineJumpSmallSize;
+            smallJumpUnit = PreferencesManager.PlayerPreferences.TimelineJumpSmallUnit;
+            largeJumpSize = PreferencesManager.PlayerPreferences.TimelineJumpLargeSize;
+            largeJumpUnit = PreferencesManager.PlayerPreferences.TimelineJumpLargeUnit;
             
             // Image
             enablePixelFiltering = PreferencesManager.PlayerPreferences.EnablePixelFiltering;
@@ -204,25 +203,29 @@ namespace Kinovea.Root
             tabJumping.Text = "Jumping";
             grpJumping.Text = "Timeline jumping";
 
-            rbSnapToSteps.Text = "Snap to steps";
-            lblSnapSmall.Text = "Small jump (total number of steps):";
-            lblSnapLarge.Text = "Large jump (total number of steps):";
-            rbJumpByTime.Text = "Jump by time";
-            lblJumpSmall.Text = "Small jump (seconds):";
-            lblJumpLarge.Text = "Large jump (seconds):";
+            lblSmallJump.Text = "Small jump size:";
+            lblLargeJump.Text = "Large jump size:";
+   
+            nudSmallJump.Value = (decimal)smallJumpSize;
+            nudLargeJump.Value = (decimal)largeJumpSize;
+            NudHelper.FixNudScroll(nudSmallJump);
+            NudHelper.FixNudScroll(nudLargeJump);
 
-            rbSnapToSteps.Checked = jumpType == TimelineJumpType.SnapToStep;
-            rbJumpByTime.Checked = jumpType == TimelineJumpType.Relative;
-               
-            nudSnapSmall.Value = smallSteps;
-            nudSnapLarge.Value = largeSteps;
-            nudJumpSmall.Value = (decimal)smallJump;
-            nudJumpLarge.Value = (decimal)largeJump;
+            cbSmallJump.Items.Add("Seconds");
+            cbSmallJump.Items.Add("Milliseconds");
+            cbSmallJump.Items.Add("Frames");
+            cbSmallJump.Items.Add("Percent");
+            int currentSmallJumpUnitIndex = (int)smallJumpUnit;
+            cbSmallJump.SelectedIndex = currentSmallJumpUnitIndex < cbSmallJump.Items.Count ?
+                currentSmallJumpUnitIndex : 0;
 
-            NudHelper.FixNudScroll(nudSnapSmall);
-            NudHelper.FixNudScroll(nudSnapLarge);
-            NudHelper.FixNudScroll(nudJumpSmall);
-            NudHelper.FixNudScroll(nudJumpLarge);
+            cbLargeJump.Items.Add("Seconds");
+            cbLargeJump.Items.Add("Milliseconds");
+            cbLargeJump.Items.Add("Frames");
+            cbLargeJump.Items.Add("Percent");
+            int currentLargeJumpUnitIndex = (int)largeJumpUnit;
+            cbLargeJump.SelectedIndex = currentLargeJumpUnitIndex < cbLargeJump.Items.Count ?
+                currentLargeJumpUnitIndex : 0;
 
             UpdateCommandView();
         }
@@ -321,39 +324,32 @@ namespace Kinovea.Root
 
         #region Jumping
 
-        private void rbSnapToSteps_CheckedChanged(object sender, EventArgs e)
+        private void nudSmallJump_ValueChanged(object sender, EventArgs e)
         {
-            if (rbSnapToSteps.Checked)
-            {
-                jumpType = TimelineJumpType.SnapToStep;
-            }
-            else if (rbJumpByTime.Checked)
-            {
-                jumpType = TimelineJumpType.Relative;
-            }
+            smallJumpSize = (float)nudSmallJump.Value;
         }
-        private void nudSnapSmall_ValueChanged(object sender, EventArgs e)
+        private void nudLargeJump_ValueChanged(object sender, EventArgs e)
         {
-            smallSteps = (int)nudSnapSmall.Value;
-        }
-        private void nudSnapLarge_ValueChanged(object sender, EventArgs e)
-        {
-            largeSteps = (int)nudSnapLarge.Value;
+            largeJumpSize = (float)nudLargeJump.Value;
         }
 
-        private void nudJumpSmall_ValueChanged(object sender, EventArgs e)
+        private void cbSmallJump_SelectedIndexChanged(object sender, EventArgs e)
         {
-            smallJump = (float)nudJumpSmall.Value;
+            smallJumpUnit = (TimelineJumpUnit)cbSmallJump.SelectedIndex;
         }
 
-        private void nudJumpLarge_ValueChanged(object sender, EventArgs e)
+        private void cbLargeJump_SelectedIndexChanged(object sender, EventArgs e)
         {
-            largeJump = (float)nudJumpLarge.Value;
+            largeJumpUnit = (TimelineJumpUnit)cbLargeJump.SelectedIndex;
         }
 
         private void UpdateCommandView()
         {
-            List<string> names = new List<string>() { "LargeJumpForward", "LargeJumpBackward", "SmallJumpForward", "SmallJumpBackward" };
+            List<string> names = new List<string>() { 
+                "SmallJumpForward", 
+                "SmallJumpBackward", 
+                "LargeJumpForward", 
+                "LargeJumpBackward", };
             
             lvCommands.Items.Clear();
             foreach (string name in names)
@@ -470,12 +466,11 @@ namespace Kinovea.Root
             PreferencesManager.PlayerPreferences.SyncLockSpeed = syncLockSpeeds;
             PreferencesManager.PlayerPreferences.SyncByMotion = syncByMotion;
 
-            // Jumping
-            PreferencesManager.PlayerPreferences.TimelineJumpType = jumpType;
-            PreferencesManager.PlayerPreferences.TimelineJumpSmallSteps = smallSteps;
-            PreferencesManager.PlayerPreferences.TimelineJumpLargeSteps = largeSteps;
-            PreferencesManager.PlayerPreferences.TimelineJumpSmallJump = smallJump;
-            PreferencesManager.PlayerPreferences.TimelineJumpLargeJump = largeJump;
+            // Time jump
+            PreferencesManager.PlayerPreferences.TimelineJumpSmallSize = smallJumpSize;
+            PreferencesManager.PlayerPreferences.TimelineJumpSmallUnit = smallJumpUnit;
+            PreferencesManager.PlayerPreferences.TimelineJumpLargeSize = largeJumpSize;
+            PreferencesManager.PlayerPreferences.TimelineJumpLargeUnit = largeJumpUnit;
 
             // Image
             PreferencesManager.PlayerPreferences.EnablePixelFiltering = enablePixelFiltering;

@@ -73,16 +73,12 @@ namespace Kinovea.Root
       this.btnClear = new System.Windows.Forms.Button();
       this.btnApply = new System.Windows.Forms.Button();
       this.grpJumping = new System.Windows.Forms.GroupBox();
-      this.nudJumpLarge = new System.Windows.Forms.NumericUpDown();
-      this.lblJumpLarge = new System.Windows.Forms.Label();
-      this.nudJumpSmall = new System.Windows.Forms.NumericUpDown();
-      this.lblJumpSmall = new System.Windows.Forms.Label();
-      this.nudSnapLarge = new System.Windows.Forms.NumericUpDown();
-      this.lblSnapLarge = new System.Windows.Forms.Label();
-      this.nudSnapSmall = new System.Windows.Forms.NumericUpDown();
-      this.lblSnapSmall = new System.Windows.Forms.Label();
-      this.rbJumpByTime = new System.Windows.Forms.RadioButton();
-      this.rbSnapToSteps = new System.Windows.Forms.RadioButton();
+      this.cbLargeJump = new System.Windows.Forms.ComboBox();
+      this.cbSmallJump = new System.Windows.Forms.ComboBox();
+      this.nudLargeJump = new System.Windows.Forms.NumericUpDown();
+      this.lblLargeJump = new System.Windows.Forms.Label();
+      this.nudSmallJump = new System.Windows.Forms.NumericUpDown();
+      this.lblSmallJump = new System.Windows.Forms.Label();
       this.tabImage = new System.Windows.Forms.TabPage();
       this.chkEnablePixelFiltering = new System.Windows.Forms.CheckBox();
       this.cmbImageFormats = new System.Windows.Forms.ComboBox();
@@ -96,10 +92,8 @@ namespace Kinovea.Root
       this.tabJumping.SuspendLayout();
       this.grpShortcut.SuspendLayout();
       this.grpJumping.SuspendLayout();
-      ((System.ComponentModel.ISupportInitialize)(this.nudJumpLarge)).BeginInit();
-      ((System.ComponentModel.ISupportInitialize)(this.nudJumpSmall)).BeginInit();
-      ((System.ComponentModel.ISupportInitialize)(this.nudSnapLarge)).BeginInit();
-      ((System.ComponentModel.ISupportInitialize)(this.nudSnapSmall)).BeginInit();
+      ((System.ComponentModel.ISupportInitialize)(this.nudLargeJump)).BeginInit();
+      ((System.ComponentModel.ISupportInitialize)(this.nudSmallJump)).BeginInit();
       this.tabImage.SuspendLayout();
       this.SuspendLayout();
       // 
@@ -298,16 +292,16 @@ namespace Kinovea.Root
       this.grpShortcut.Controls.Add(this.tbHotkey);
       this.grpShortcut.Controls.Add(this.btnClear);
       this.grpShortcut.Controls.Add(this.btnApply);
-      this.grpShortcut.Location = new System.Drawing.Point(3, 169);
+      this.grpShortcut.Location = new System.Drawing.Point(3, 149);
       this.grpShortcut.Name = "grpShortcut";
-      this.grpShortcut.Size = new System.Drawing.Size(476, 124);
+      this.grpShortcut.Size = new System.Drawing.Size(476, 144);
       this.grpShortcut.TabIndex = 67;
       this.grpShortcut.TabStop = false;
       this.grpShortcut.Text = "Keyboard shortcuts";
       // 
       // btnDefault
       // 
-      this.btnDefault.Location = new System.Drawing.Point(393, 95);
+      this.btnDefault.Location = new System.Drawing.Point(392, 115);
       this.btnDefault.Name = "btnDefault";
       this.btnDefault.Size = new System.Drawing.Size(75, 23);
       this.btnDefault.TabIndex = 71;
@@ -344,15 +338,15 @@ namespace Kinovea.Root
       // 
       // tbHotkey
       // 
-      this.tbHotkey.Location = new System.Drawing.Point(5, 97);
+      this.tbHotkey.Location = new System.Drawing.Point(6, 117);
       this.tbHotkey.Name = "tbHotkey";
-      this.tbHotkey.Size = new System.Drawing.Size(220, 20);
+      this.tbHotkey.Size = new System.Drawing.Size(218, 20);
       this.tbHotkey.TabIndex = 70;
       this.tbHotkey.Text = "None";
       // 
       // btnClear
       // 
-      this.btnClear.Location = new System.Drawing.Point(312, 95);
+      this.btnClear.Location = new System.Drawing.Point(311, 115);
       this.btnClear.Name = "btnClear";
       this.btnClear.Size = new System.Drawing.Size(75, 23);
       this.btnClear.TabIndex = 69;
@@ -362,7 +356,7 @@ namespace Kinovea.Root
       // 
       // btnApply
       // 
-      this.btnApply.Location = new System.Drawing.Point(231, 95);
+      this.btnApply.Location = new System.Drawing.Point(230, 115);
       this.btnApply.Name = "btnApply";
       this.btnApply.Size = new System.Drawing.Size(75, 23);
       this.btnApply.TabIndex = 68;
@@ -372,186 +366,112 @@ namespace Kinovea.Root
       // 
       // grpJumping
       // 
-      this.grpJumping.Controls.Add(this.nudJumpLarge);
-      this.grpJumping.Controls.Add(this.lblJumpLarge);
-      this.grpJumping.Controls.Add(this.nudJumpSmall);
-      this.grpJumping.Controls.Add(this.lblJumpSmall);
-      this.grpJumping.Controls.Add(this.nudSnapLarge);
-      this.grpJumping.Controls.Add(this.lblSnapLarge);
-      this.grpJumping.Controls.Add(this.nudSnapSmall);
-      this.grpJumping.Controls.Add(this.lblSnapSmall);
-      this.grpJumping.Controls.Add(this.rbJumpByTime);
-      this.grpJumping.Controls.Add(this.rbSnapToSteps);
+      this.grpJumping.Controls.Add(this.cbLargeJump);
+      this.grpJumping.Controls.Add(this.cbSmallJump);
+      this.grpJumping.Controls.Add(this.nudLargeJump);
+      this.grpJumping.Controls.Add(this.lblLargeJump);
+      this.grpJumping.Controls.Add(this.nudSmallJump);
+      this.grpJumping.Controls.Add(this.lblSmallJump);
       this.grpJumping.Location = new System.Drawing.Point(3, 3);
       this.grpJumping.Name = "grpJumping";
-      this.grpJumping.Size = new System.Drawing.Size(476, 163);
+      this.grpJumping.Size = new System.Drawing.Size(476, 140);
       this.grpJumping.TabIndex = 66;
       this.grpJumping.TabStop = false;
       this.grpJumping.Text = "Timeline jumping";
       // 
-      // nudJumpLarge
+      // cbLargeJump
       // 
-      this.nudJumpLarge.DecimalPlaces = 1;
-      this.nudJumpLarge.Increment = new decimal(new int[] {
+      this.cbLargeJump.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+      this.cbLargeJump.Location = new System.Drawing.Point(240, 56);
+      this.cbLargeJump.Name = "cbLargeJump";
+      this.cbLargeJump.Size = new System.Drawing.Size(133, 21);
+      this.cbLargeJump.TabIndex = 64;
+      this.cbLargeJump.SelectedIndexChanged += new System.EventHandler(this.cbLargeJump_SelectedIndexChanged);
+      // 
+      // cbSmallJump
+      // 
+      this.cbSmallJump.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+      this.cbSmallJump.Location = new System.Drawing.Point(240, 25);
+      this.cbSmallJump.Name = "cbSmallJump";
+      this.cbSmallJump.Size = new System.Drawing.Size(133, 21);
+      this.cbSmallJump.TabIndex = 63;
+      this.cbSmallJump.SelectedIndexChanged += new System.EventHandler(this.cbSmallJump_SelectedIndexChanged);
+      // 
+      // nudLargeJump
+      // 
+      this.nudLargeJump.DecimalPlaces = 1;
+      this.nudLargeJump.Increment = new decimal(new int[] {
             1,
             0,
             0,
             65536});
-      this.nudJumpLarge.Location = new System.Drawing.Point(338, 132);
-      this.nudJumpLarge.Maximum = new decimal(new int[] {
-            60,
+      this.nudLargeJump.Location = new System.Drawing.Point(145, 57);
+      this.nudLargeJump.Maximum = new decimal(new int[] {
+            10000,
             0,
             0,
             0});
-      this.nudJumpLarge.Minimum = new decimal(new int[] {
+      this.nudLargeJump.Minimum = new decimal(new int[] {
             1,
             0,
             0,
             65536});
-      this.nudJumpLarge.Name = "nudJumpLarge";
-      this.nudJumpLarge.Size = new System.Drawing.Size(55, 20);
-      this.nudJumpLarge.TabIndex = 62;
-      this.nudJumpLarge.Value = new decimal(new int[] {
+      this.nudLargeJump.Name = "nudLargeJump";
+      this.nudLargeJump.Size = new System.Drawing.Size(55, 20);
+      this.nudLargeJump.TabIndex = 58;
+      this.nudLargeJump.Value = new decimal(new int[] {
             10,
             0,
             0,
             0});
-      this.nudJumpLarge.ValueChanged += new System.EventHandler(this.nudJumpLarge_ValueChanged);
+      this.nudLargeJump.ValueChanged += new System.EventHandler(this.nudLargeJump_ValueChanged);
       // 
-      // lblJumpLarge
+      // lblLargeJump
       // 
-      this.lblJumpLarge.AutoSize = true;
-      this.lblJumpLarge.Location = new System.Drawing.Point(54, 134);
-      this.lblJumpLarge.Name = "lblJumpLarge";
-      this.lblJumpLarge.Size = new System.Drawing.Size(111, 13);
-      this.lblJumpLarge.TabIndex = 61;
-      this.lblJumpLarge.Text = "Large jump (seconds):";
+      this.lblLargeJump.AutoSize = true;
+      this.lblLargeJump.Location = new System.Drawing.Point(39, 60);
+      this.lblLargeJump.Name = "lblLargeJump";
+      this.lblLargeJump.Size = new System.Drawing.Size(59, 13);
+      this.lblLargeJump.TabIndex = 57;
+      this.lblLargeJump.Text = "Long jump:";
       // 
-      // nudJumpSmall
+      // nudSmallJump
       // 
-      this.nudJumpSmall.DecimalPlaces = 1;
-      this.nudJumpSmall.Increment = new decimal(new int[] {
+      this.nudSmallJump.DecimalPlaces = 1;
+      this.nudSmallJump.Increment = new decimal(new int[] {
             1,
             0,
             0,
             65536});
-      this.nudJumpSmall.Location = new System.Drawing.Point(338, 106);
-      this.nudJumpSmall.Maximum = new decimal(new int[] {
-            10,
+      this.nudSmallJump.Location = new System.Drawing.Point(145, 26);
+      this.nudSmallJump.Maximum = new decimal(new int[] {
+            10000,
             0,
             0,
             0});
-      this.nudJumpSmall.Minimum = new decimal(new int[] {
+      this.nudSmallJump.Minimum = new decimal(new int[] {
             1,
             0,
             0,
             65536});
-      this.nudJumpSmall.Name = "nudJumpSmall";
-      this.nudJumpSmall.Size = new System.Drawing.Size(55, 20);
-      this.nudJumpSmall.TabIndex = 60;
-      this.nudJumpSmall.Value = new decimal(new int[] {
+      this.nudSmallJump.Name = "nudSmallJump";
+      this.nudSmallJump.Size = new System.Drawing.Size(55, 20);
+      this.nudSmallJump.TabIndex = 56;
+      this.nudSmallJump.Value = new decimal(new int[] {
             5,
             0,
             0,
             65536});
-      this.nudJumpSmall.ValueChanged += new System.EventHandler(this.nudJumpSmall_ValueChanged);
+      this.nudSmallJump.ValueChanged += new System.EventHandler(this.nudSmallJump_ValueChanged);
       // 
-      // lblJumpSmall
+      // lblSmallJump
       // 
-      this.lblJumpSmall.AutoSize = true;
-      this.lblJumpSmall.Location = new System.Drawing.Point(54, 108);
-      this.lblJumpSmall.Name = "lblJumpSmall";
-      this.lblJumpSmall.Size = new System.Drawing.Size(109, 13);
-      this.lblJumpSmall.TabIndex = 59;
-      this.lblJumpSmall.Text = "Small jump (seconds):";
-      // 
-      // nudSnapLarge
-      // 
-      this.nudSnapLarge.Location = new System.Drawing.Point(338, 64);
-      this.nudSnapLarge.Maximum = new decimal(new int[] {
-            10000,
-            0,
-            0,
-            0});
-      this.nudSnapLarge.Minimum = new decimal(new int[] {
-            10,
-            0,
-            0,
-            0});
-      this.nudSnapLarge.Name = "nudSnapLarge";
-      this.nudSnapLarge.Size = new System.Drawing.Size(55, 20);
-      this.nudSnapLarge.TabIndex = 58;
-      this.nudSnapLarge.Value = new decimal(new int[] {
-            10,
-            0,
-            0,
-            0});
-      this.nudSnapLarge.ValueChanged += new System.EventHandler(this.nudSnapLarge_ValueChanged);
-      // 
-      // lblSnapLarge
-      // 
-      this.lblSnapLarge.AutoSize = true;
-      this.lblSnapLarge.Location = new System.Drawing.Point(54, 66);
-      this.lblSnapLarge.Name = "lblSnapLarge";
-      this.lblSnapLarge.Size = new System.Drawing.Size(169, 13);
-      this.lblSnapLarge.TabIndex = 57;
-      this.lblSnapLarge.Text = "Large jump (total number of steps):";
-      // 
-      // nudSnapSmall
-      // 
-      this.nudSnapSmall.Location = new System.Drawing.Point(338, 38);
-      this.nudSnapSmall.Maximum = new decimal(new int[] {
-            10000,
-            0,
-            0,
-            0});
-      this.nudSnapSmall.Minimum = new decimal(new int[] {
-            10,
-            0,
-            0,
-            0});
-      this.nudSnapSmall.Name = "nudSnapSmall";
-      this.nudSnapSmall.Size = new System.Drawing.Size(55, 20);
-      this.nudSnapSmall.TabIndex = 56;
-      this.nudSnapSmall.Value = new decimal(new int[] {
-            100,
-            0,
-            0,
-            0});
-      this.nudSnapSmall.ValueChanged += new System.EventHandler(this.nudSnapSmall_ValueChanged);
-      // 
-      // lblSnapSmall
-      // 
-      this.lblSnapSmall.AutoSize = true;
-      this.lblSnapSmall.Location = new System.Drawing.Point(54, 42);
-      this.lblSnapSmall.Name = "lblSnapSmall";
-      this.lblSnapSmall.Size = new System.Drawing.Size(167, 13);
-      this.lblSnapSmall.TabIndex = 55;
-      this.lblSnapSmall.Text = "Small jump (total number of steps):";
-      // 
-      // rbJumpByTime
-      // 
-      this.rbJumpByTime.AutoSize = true;
-      this.rbJumpByTime.Location = new System.Drawing.Point(13, 88);
-      this.rbJumpByTime.Name = "rbJumpByTime";
-      this.rbJumpByTime.Size = new System.Drawing.Size(86, 17);
-      this.rbJumpByTime.TabIndex = 39;
-      this.rbJumpByTime.TabStop = true;
-      this.rbJumpByTime.Text = "Jump by time";
-      this.rbJumpByTime.UseVisualStyleBackColor = true;
-      this.rbJumpByTime.CheckedChanged += new System.EventHandler(this.rbSnapToSteps_CheckedChanged);
-      // 
-      // rbSnapToSteps
-      // 
-      this.rbSnapToSteps.AutoSize = true;
-      this.rbSnapToSteps.Location = new System.Drawing.Point(13, 22);
-      this.rbSnapToSteps.Name = "rbSnapToSteps";
-      this.rbSnapToSteps.Size = new System.Drawing.Size(90, 17);
-      this.rbSnapToSteps.TabIndex = 38;
-      this.rbSnapToSteps.TabStop = true;
-      this.rbSnapToSteps.Text = "Snap to steps";
-      this.rbSnapToSteps.UseVisualStyleBackColor = true;
-      this.rbSnapToSteps.CheckedChanged += new System.EventHandler(this.rbSnapToSteps_CheckedChanged);
+      this.lblSmallJump.AutoSize = true;
+      this.lblSmallJump.Location = new System.Drawing.Point(38, 29);
+      this.lblSmallJump.Name = "lblSmallJump";
+      this.lblSmallJump.Size = new System.Drawing.Size(60, 13);
+      this.lblSmallJump.TabIndex = 55;
+      this.lblSmallJump.Text = "Short jump:";
       // 
       // tabImage
       // 
@@ -624,10 +544,8 @@ namespace Kinovea.Root
       this.grpShortcut.PerformLayout();
       this.grpJumping.ResumeLayout(false);
       this.grpJumping.PerformLayout();
-      ((System.ComponentModel.ISupportInitialize)(this.nudJumpLarge)).EndInit();
-      ((System.ComponentModel.ISupportInitialize)(this.nudJumpSmall)).EndInit();
-      ((System.ComponentModel.ISupportInitialize)(this.nudSnapLarge)).EndInit();
-      ((System.ComponentModel.ISupportInitialize)(this.nudSnapSmall)).EndInit();
+      ((System.ComponentModel.ISupportInitialize)(this.nudLargeJump)).EndInit();
+      ((System.ComponentModel.ISupportInitialize)(this.nudSmallJump)).EndInit();
       this.tabImage.ResumeLayout(false);
       this.tabImage.PerformLayout();
       this.ResumeLayout(false);
@@ -649,17 +567,11 @@ namespace Kinovea.Root
         private System.Windows.Forms.Label lblAspectRatio;
         private System.Windows.Forms.CheckBox chkDeinterlace;
         private System.Windows.Forms.TabPage tabJumping;
-        private System.Windows.Forms.RadioButton rbJumpByTime;
-        private System.Windows.Forms.RadioButton rbSnapToSteps;
         private System.Windows.Forms.GroupBox grpJumping;
-        private System.Windows.Forms.NumericUpDown nudJumpLarge;
-        private System.Windows.Forms.Label lblJumpLarge;
-        private System.Windows.Forms.NumericUpDown nudJumpSmall;
-        private System.Windows.Forms.Label lblJumpSmall;
-        private System.Windows.Forms.NumericUpDown nudSnapLarge;
-        private System.Windows.Forms.Label lblSnapLarge;
-        private System.Windows.Forms.NumericUpDown nudSnapSmall;
-        private System.Windows.Forms.Label lblSnapSmall;
+        private System.Windows.Forms.NumericUpDown nudLargeJump;
+        private System.Windows.Forms.Label lblLargeJump;
+        private System.Windows.Forms.NumericUpDown nudSmallJump;
+        private System.Windows.Forms.Label lblSmallJump;
         private System.Windows.Forms.TabPage tabPlayer;
         private System.Windows.Forms.CheckBox chkInteractiveTracker;
         private System.Windows.Forms.CheckBox chkEnableFrameSkipping;
@@ -673,5 +585,7 @@ namespace Kinovea.Root
         private System.Windows.Forms.Button btnClear;
         private System.Windows.Forms.Button btnApply;
         private System.Windows.Forms.GroupBox grpShortcut;
+        private System.Windows.Forms.ComboBox cbLargeJump;
+        private System.Windows.Forms.ComboBox cbSmallJump;
     }
 }

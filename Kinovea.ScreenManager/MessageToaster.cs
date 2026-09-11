@@ -91,6 +91,7 @@ namespace Kinovea.ScreenManager
             SizeF bgSize = canvas.MeasureString(message, font);
             bgSize = new SizeF(bgSize.Width, bgSize.Height + 3);
 
+            float margin = 50;
             PointF location = PointF.Empty; 
             if (alignment == HorizontalAlignment.Center)
             {
@@ -98,11 +99,11 @@ namespace Kinovea.ScreenManager
             }
             else if (alignment == HorizontalAlignment.Left)
             {
-                location = new PointF(10, (canvasHolder.Height - bgSize.Height) / 2);
+                location = new PointF(margin, (canvasHolder.Height - bgSize.Height) / 2);
             }
             else if (alignment == HorizontalAlignment.Right)
             {
-                location = new PointF(canvasHolder.Width - bgSize.Width - 10, (canvasHolder.Height - bgSize.Height) / 2);
+                location = new PointF(canvasHolder.Width - bgSize.Width - margin, (canvasHolder.Height - bgSize.Height) / 2);
             }
 
             RectangleF bg = new RectangleF(location.X - 5, location.Y - 5, bgSize.Width + 10, bgSize.Height + 5);

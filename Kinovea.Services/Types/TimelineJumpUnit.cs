@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 
 namespace Kinovea.Services
 {
-    public enum TimelineJumpType
+    public enum TimelineJumpUnit
     {
-        SnapToStep,
-        Relative
+        Second,
+        Millisecond,
+        Frame,
+        SnapPercent,
     }
 }

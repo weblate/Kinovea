@@ -1957,6 +1957,9 @@ namespace Kinovea.ScreenManager
             PresentFrame(workingZone.End);
         }
 
+        /// <summary>
+        /// Perform a timeline jump.
+        /// </summary>
         public void TimelineJump(bool largeJump, bool forward)
         {
             if (!m_FrameServer.Loaded)
@@ -1965,23 +1968,23 @@ namespace Kinovea.ScreenManager
             bool wasPlaying = isCurrentlyPlaying;
             BeforeManualMove();
 
-            TimelineJumpType jumpType = PreferencesManager.PlayerPreferences.TimelineJumpType;
-            long targetTimestamp = currentTimestamp;
-            if (jumpType == TimelineJumpType.SnapToStep)
-            {
-                int steps = largeJump ? 
-                    PreferencesManager.PlayerPreferences.TimelineJumpLargeSteps : 
-                    PreferencesManager.PlayerPreferences.TimelineJumpSmallSteps;
+            float value = largeJump ? 
+                PreferencesManager.PlayerPreferences.TimelineJumpLargeSize :
+                PreferencesManager.PlayerPreferences.TimelineJumpSmallSize;
 
-                targetTimestamp = SnapToStep(steps, forward);
+            TimelineJumpUnit unit = largeJump ? 
+                PreferencesManager.PlayerPreferences.TimelineJumpLargeUnit :
+                PreferencesManager.PlayerPreferences.TimelineJumpSmallUnit;
+
+            long targetTimestamp = currentTimestamp;
+            bool showToast = true;
+            if (unit == TimelineJumpUnit.SnapPercent)
+            {
+                targetTimestamp = SnapToPercent(value, forward, showToast);
             }
             else
             {
-                float jump = largeJump ?
-                    PreferencesManager.PlayerPreferences.TimelineJumpLargeJump :
-                    PreferencesManager.PlayerPreferences.TimelineJumpSmallJump;
-
-                targetTimestamp = JumpBy(jump, forward);
+                targetTimestamp = JumpByTime(value, forward, unit, showToast);
             }
 
             // Clamp to working zone.
@@ -2009,37 +2012,40 @@ namespace Kinovea.ScreenManager
         /// <summary>
         /// Jump to the next/previous step point on the timeline.
         /// </summary>
-        private long SnapToStep(int steps, bool forward)
+        private long SnapToPercent(float stepSizePercent, bool forward, bool showToast)
         {
             double range = Math.Round(workingZone.End - workingZone.Start + m_FrameServer.VideoReader.Info.AverageTimeStampsPerFrame);
-            double current = (currentTimestamp - workingZone.Start) / range;
-            double step = 1.0 / steps;
-            double stepIndex = current / step;
-            double roundedStep = Math.Round(stepIndex);
+            double steps = 100 / stepSizePercent;
+            double step = stepSizePercent / 100.0;
+            double currentNormalized = (currentTimestamp - workingZone.Start) / range;
+            double currentIndex = currentNormalized * steps;
+            double roundedStep = Math.Round(currentIndex);
             double epsilon = m_FrameServer.VideoReader.Info.AverageTimeStampsPerFrame / range / step;
-            if (Math.Abs(stepIndex - roundedStep) < epsilon)
+            if (Math.Abs(currentIndex - roundedStep) < epsilon)
             {
-                stepIndex = roundedStep;
+                currentIndex = roundedStep;
             }
             
-            double snapIndex = forward ? Math.Floor(stepIndex) + 1 : Math.Ceiling(stepIndex) - 1;
+            double snapIndex = forward ? Math.Floor(currentIndex) + 1 : Math.Ceiling(currentIndex) - 1;
             snapIndex = Math.Max(Math.Min(snapIndex, steps), 0);
             long snappedTimestamp = workingZone.Start + (long)Math.Round(snapIndex * step * range);
+            double snapPercent = snapIndex * stepSizePercent;
             
-            log.DebugFormat("Snap to step. Current: [{0}]. Snapped: [~{1}].", currentTimestamp, snappedTimestamp);
+            log.DebugFormat("Snap to percent. Current: {0}%. Snapped: {1}%.",
+                currentNormalized * stepSizePercent, snapPercent);
 
-            if (snapIndex < steps)
+            if (showToast)
             {
                 string message = "";
                 HorizontalAlignment alignment = HorizontalAlignment.Center;
                 if (forward)
                 {
-                    message = string.Format("{0:0}/{1}", snapIndex + 1, steps);
+                    message = string.Format("{0:0}%", snapPercent);
                     alignment = HorizontalAlignment.Right;
                 }
                 else
                 {
-                    message = string.Format("{0:0}/{1}", snapIndex + 1, steps);
+                    message = string.Format("{0:0}%", snapPercent);
                     alignment = HorizontalAlignment.Left;
                 }
 
@@ -2049,29 +2055,47 @@ namespace Kinovea.ScreenManager
             return snappedTimestamp;
         }
 
-        private long JumpBy(float jump, bool forward)
+        private long JumpByTime(float value, bool forward, TimelineJumpUnit unit, bool showToast)
         {
-            double delta = jump * m_FrameServer.VideoReader.Info.AverageTimeStampsPerSeconds;
-            long newTimestamp = forward ? 
-                (long)Math.Round(currentTimestamp + delta) :
-                (long)Math.Round(currentTimestamp - delta);
-
-            log.DebugFormat("Jump by {0} ms. Current: [{1}]. New: [~{2}].", delta, currentTimestamp, newTimestamp);
-
-            string message = "";
-            HorizontalAlignment alignment = HorizontalAlignment.Center;
-            if (forward)
+            double sign = forward ? 1.0 : -1.0;
+            double deltaTimestamps = 0;
+            string unitStr = "";
+            switch (unit)
             {
-                message = string.Format("+{0:0.###}", jump);
-                alignment = HorizontalAlignment.Right;
-            }
-            else
-            {
-                message = string.Format("-{0:0.###}", jump);
-                alignment = HorizontalAlignment.Left;
+                case TimelineJumpUnit.Second:
+                    deltaTimestamps = value * m_FrameServer.VideoReader.Info.AverageTimeStampsPerSeconds;
+                    unitStr = "s";
+                    break;
+                case TimelineJumpUnit.Millisecond:
+                    deltaTimestamps = (value / 1000) * m_FrameServer.VideoReader.Info.AverageTimeStampsPerSeconds;
+                    unitStr = "ms";
+                    break;
+                case TimelineJumpUnit.Frame:
+                    deltaTimestamps = Math.Ceiling(value) * m_FrameServer.VideoReader.Info.AverageTimeStampsPerFrame;
+                    unitStr = "f";
+                    break;
             }
 
-            m_MessageToaster.Show(message, 750, alignment);
+            long newTimestamp = (long)Math.Round(currentTimestamp + (sign * deltaTimestamps));
+
+            if (showToast)
+            {
+                // Send a toast message on the side.
+                string message = "";
+                HorizontalAlignment alignment = HorizontalAlignment.Center;
+                if (forward)
+                {
+                    message = string.Format("+{0:0.###} {1}", value, unitStr);
+                    alignment = HorizontalAlignment.Right;
+                }
+                else
+                {
+                    message = string.Format("−{0:0.###} {1}", value, unitStr);
+                    alignment = HorizontalAlignment.Left;
+                }
+
+                m_MessageToaster.Show(message, 750, alignment);
+            }
 
             return newTimestamp;   
         }
