@@ -45,6 +45,12 @@ namespace Kinovea.Video.Bitmap
         public override VideoFrame Current { 
             get { return current; }
         }
+
+        public override CacheSnapshot CacheSnapshot 
+        {
+            get { return cacheSnapshot; }
+        }
+
         public override VideoCapabilities Flags { 
             get 
             { 
@@ -78,6 +84,7 @@ namespace Kinovea.Video.Bitmap
         private VideoSection workingZone;
         private VideoInfo videoInfo = new VideoInfo();
         private VideoGeometry videoGeometry = new VideoGeometry();
+        private CacheSnapshot cacheSnapshot = CacheSnapshot.MakeEmpty();
         #endregion
 
         #region Open/Close/Summary

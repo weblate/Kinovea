@@ -39,6 +39,12 @@ namespace Kinovea.Video.SVG
         {
             get { return current; }
         }
+
+        public override CacheSnapshot CacheSnapshot
+        {
+            get { return cacheSnapshot; }
+        }
+
         public override VideoCapabilities Flags
         {
             get { return VideoCapabilities.CanDecodeOnDemand | VideoCapabilities.CanChangeWorkingZone; }
@@ -74,6 +80,7 @@ namespace Kinovea.Video.SVG
         private VideoInfo videoInfo = new VideoInfo();
         private VideoGeometry videoGeometry = new VideoGeometry();
         private Size outputSize = new Size(640, 480);
+        private CacheSnapshot cacheSnapshot = CacheSnapshot.MakeEmpty();
         #endregion
 
         #region Open/Close/Summary

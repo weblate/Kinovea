@@ -27,6 +27,12 @@ namespace Kinovea.Video
         VideoFrame CurrentFrame { get; }
 
         /// <summary>
+        /// A snapshot of the current state of the cache.
+        /// Used for feedback in the UI.
+        /// </summary>
+        CacheSnapshot Snapshot { get; }
+
+        /// <summary>
         /// Set current to the closest frame to the target.
         /// </summary>
         void AcquireClosest(long timestamp);

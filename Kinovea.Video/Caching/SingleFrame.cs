@@ -30,6 +30,10 @@ namespace Kinovea.Video
         {
             get { return current; }
         }
+        public CacheSnapshot Snapshot
+        {
+            get { return cacheSnapshot; }
+        }
         public bool IsEmpty
         {
             get { return current == null; }
@@ -37,6 +41,11 @@ namespace Kinovea.Video
 
         #endregion
 
+        #region Members
+        private VideoFrame current = null;
+        private VideoFrameDisposer frameDisposer;
+        private CacheSnapshot cacheSnapshot = CacheSnapshot.MakeEmpty();
+        #endregion
 
         #region Construction / Destruction
         public SingleFrame(){}
@@ -60,10 +69,6 @@ namespace Kinovea.Video
         }
         #endregion
         
-        #region Members
-        private VideoFrame current = null;
-        private VideoFrameDisposer frameDisposer;
-        #endregion
 
 
         public void AcquireClosest(long timestamp)

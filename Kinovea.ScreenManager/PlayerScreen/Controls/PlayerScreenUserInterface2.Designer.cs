@@ -437,7 +437,7 @@ namespace Kinovea.ScreenManager
       this.trkFrame.Name = "trkFrame";
       this.trkFrame.Position = ((long)(0));
       this.trkFrame.RightHairline = ((long)(0));
-      this.trkFrame.ShowCacheInTimeline = false;
+      this.trkFrame.ShowCacheSnapshot = false;
       this.trkFrame.Size = new System.Drawing.Size(590, 20);
       this.trkFrame.TabIndex = 16;
       this.trkFrame.PositionChanging += new System.EventHandler<Kinovea.ScreenManager.TimeEventArgs>(this.trkFrame_PositionChanging);

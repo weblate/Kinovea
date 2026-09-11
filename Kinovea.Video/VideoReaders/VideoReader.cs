@@ -57,6 +57,9 @@ namespace Kinovea.Video
 
         #region Properties
         public abstract VideoFrame Current { get; }
+
+        public abstract CacheSnapshot CacheSnapshot { get; }
+
         public abstract VideoCapabilities Flags { get; }
         public abstract VideoInfo Info { get; }
         public abstract bool Loaded { get; }
@@ -205,8 +208,6 @@ namespace Kinovea.Video
         public virtual void UpdateAllowFrameSkipping(bool allow)
         {
         }
-
-
 
         /// <summary>
         /// During a playback loop, compute the expected frame timestamp 

@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Threading;
 using Kinovea.Services;
 
 namespace Kinovea.Video
@@ -39,6 +40,13 @@ namespace Kinovea.Video
             get 
             { 
                 return current; 
+            }
+        }
+        public CacheSnapshot Snapshot
+        {
+            get 
+            { 
+                return Volatile.Read(ref cacheSnapshot); 
             }
         }
         public VideoSection WorkingZone 
@@ -80,6 +88,8 @@ namespace Kinovea.Video
         private VideoFrame current;
         private double tolerance = 0.0;
         private VideoFrameDisposer frameDisposer;
+        private CacheSnapshot cacheSnapshot = CacheSnapshot.MakeEmpty();
+        private int snapshotVersion = 0;
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         #endregion
         
@@ -143,6 +153,7 @@ namespace Kinovea.Video
             }
 
             frames.Add(frame.Timestamp, frame);
+            UpdateCacheSnapshot();
             return CacheAddResult.Added;
         }
 
@@ -168,6 +179,7 @@ namespace Kinovea.Video
             }
 
             current = frames.Count > 0 ? frames.Values[0] : null;
+            UpdateCacheSnapshot();
         }
 
         public void Clear()
@@ -179,6 +191,7 @@ namespace Kinovea.Video
                 
             frames.Clear();
             current = null;
+            UpdateCacheSnapshot();
             
             log.Debug("Cache cleared.");
         }
@@ -209,6 +222,29 @@ namespace Kinovea.Video
             }
         }
 
+        #endregion
+
+        #region Cache snapshot
+
+        /// <summary>
+        /// Compute the cache snapshot and publish it.
+        /// Should be called after structural changes.
+        /// </summary>
+        private void UpdateCacheSnapshot()
+        {
+            List<VideoSection> spans = new List<VideoSection>();
+            if (frames.Count > 0)
+            {
+                long start = frames.Values[0].Timestamp;
+                long end = frames.Values[frames.Count - 1].Timestamp;
+                spans.Add(new VideoSection(start, end));
+            }
+
+            snapshotVersion = snapshotVersion + 1;
+            CacheSnapshot snapshot = new CacheSnapshot(snapshotVersion, spans.ToArray());
+
+            Volatile.Write(ref cacheSnapshot, snapshot);
+        }
         #endregion
 
         #region Shared

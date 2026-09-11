@@ -177,17 +177,15 @@ namespace Kinovea.Root
             trkMemoryBuffer.Value = memoryBuffer;
             UpdateMemoryLabel();
 
-            cbCacheInTimeline.Text = "Show memory indicator in the timeline";
+            cbCacheInTimeline.Text = "Show cache memory in the timeline";
             cbCacheInTimeline.Checked = showCacheInTimeline;
-
-            cbCacheInTimeline.Visible = false;
         }
 
         private void InitPagePlayer()
         {
             tabPlayer.Text = "Player";
 
-            chkEnableFrameSkipping.Text = "Enable frame skipping when the player is too slow";
+            chkEnableFrameSkipping.Text = "Enable frame skipping";
             chkInteractiveTracker.Text = RootLang.dlgPreferences_Player_InteractiveFrameTracker;
             chkLockSpeeds.Text = RootLang.dlgPreferences_Player_SyncLockSpeeds;
             chkSyncByMotion.Text = "Use motion synchronization mode";

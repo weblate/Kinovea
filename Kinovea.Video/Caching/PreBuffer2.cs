@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolTip;
+using Kinovea.Services;
 
 namespace Kinovea.Video
 {
@@ -21,6 +21,11 @@ namespace Kinovea.Video
             { 
                 return current; 
             }
+        }
+
+        public CacheSnapshot Snapshot
+        {
+            get { return Volatile.Read(ref cacheSnapshot); }
         }
 
         public int Count
@@ -88,6 +93,8 @@ namespace Kinovea.Video
         private double tolerance = 0.0;
         private double farAheadThreshold = 0.0;
         private VideoFrameDisposer frameDisposer;
+        private CacheSnapshot cacheSnapshot = CacheSnapshot.MakeEmpty();
+        private int snapshotVersion = 0;
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         #endregion
 
@@ -150,6 +157,7 @@ namespace Kinovea.Video
                 // Unblock the decoding thread if it was waiting for space in the cache.
                 if (removed != null)
                 {
+                    UpdateCacheSnapshot();
                     Monitor.PulseAll(sync);
                 }
             }
@@ -194,6 +202,7 @@ namespace Kinovea.Video
 
                 if (removed != null)
                 {
+                    UpdateCacheSnapshot();
                     Monitor.PulseAll(sync);
                 }
             }
@@ -274,6 +283,7 @@ namespace Kinovea.Video
                 log.DebugFormat("Added frame [{0}]. Cached: {1}.", 
                     frame.Timestamp, frames.Count);
 
+                UpdateCacheSnapshot();
                 Monitor.PulseAll(sync);
             }
 
@@ -303,6 +313,7 @@ namespace Kinovea.Video
                 }
 
                 frames.Add(frame.Timestamp, frame);
+                UpdateCacheSnapshot();
             }
 
             return CacheAddResult.Added;
@@ -440,7 +451,11 @@ namespace Kinovea.Video
                 // Do the normal eviction of old frames outside the retention window.
                 // Note that we do this even if the target wasn't acquired.
                 removed = EvictBehind(index, framesToKeepBehind);
-                
+                if (removed != null)
+                {
+                    UpdateCacheSnapshot();
+                }
+
                 result = new TryAcquireResult(targetAcquired, acquiredTimestamp);
             }
 
@@ -485,6 +500,8 @@ namespace Kinovea.Video
                 log.Debug("Shutdown - Closing cache for business xxxxxxxx");
                 interruptAdd = true;
 
+                UpdateCacheSnapshot();
+
                 // Unblock the decoder if waiting in Add().
                 Monitor.PulseAll(sync);
             }
@@ -519,6 +536,11 @@ namespace Kinovea.Video
 
                     frames.RemoveAt(i);
                     removed.Add(frame);
+                }
+
+                if (removed.Count > 0)
+                {
+                    UpdateCacheSnapshot();
                 }
 
                 log.DebugFormat("Cache purge. Removed {0} frames. Cached: {1}.", removed.Count, frames.Count);
@@ -717,6 +739,51 @@ namespace Kinovea.Video
             return new List<VideoFrame>() { frame };
         }
 
+        #endregion
+
+        #region Cache snapshot
+
+        /// <summary>
+        /// Compute the cache snapshot and publish it.
+        /// This must be called from inside the lock.
+        /// Should be called after structural changes.
+        /// </summary>
+        private void UpdateCacheSnapshot()
+        {
+            List<VideoSection> spans = new List<VideoSection>();
+
+            if (frames.Count > 0)
+            {
+                VideoFrame first = frames.Values[0];
+
+                long start = first.Timestamp;
+                long end = first.Timestamp;
+                for (int i = 1; i < frames.Count; i++)
+                {
+                    VideoFrame previous = frames.Values[i - 1];
+                    VideoFrame current = frames.Values[i];
+
+                    if (current.PreviousTimestamp == previous.Timestamp)
+                    {
+                        end = current.Timestamp;
+                    }
+                    else
+                    {
+                        spans.Add(new VideoSection(start, end));
+
+                        start = current.Timestamp;
+                        end = current.Timestamp;
+                    }
+                }
+
+                spans.Add(new VideoSection(start, end));
+            }
+
+            snapshotVersion = snapshotVersion + 1;
+            CacheSnapshot snapshot = new CacheSnapshot(snapshotVersion, spans.ToArray());
+
+            Volatile.Write(ref cacheSnapshot, snapshot);
+        }
         #endregion
 
     }

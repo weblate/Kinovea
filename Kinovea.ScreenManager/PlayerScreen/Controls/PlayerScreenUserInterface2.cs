@@ -197,7 +197,7 @@ namespace Kinovea.ScreenManager
                 if (!isSynchronized)
                 {
                     // We do not reset the time origin.
-                    trkFrame.UpdateMarkers(m_FrameServer.Metadata);
+                    trkFrame.UpdateMetadata(m_FrameServer.Metadata);
                     UpdateCurrentPositionLabels(currentTimestamp);
 
                     m_bSyncMerge = false;
@@ -300,7 +300,6 @@ namespace Kinovea.ScreenManager
         private bool isBusyRendering;
         private object lockBusyRendering = new object(); // Guard isBusyRendering between the playback thread and UI thread.
         private bool interactiveFrameTracker = true;
-        private bool showCacheInTimeline = false;
         private bool saveInProgress;
 
         // Player state requests sent to the reader.
@@ -370,6 +369,7 @@ namespace Kinovea.ScreenManager
         private ScreenDescriptorPlayback screenDescriptor;
         private bool videoFilterIsActive;
         private System.Windows.Forms.Timer selectionTimer = new System.Windows.Forms.Timer();
+        private System.Windows.Forms.Timer cacheSnapshotTimer = new System.Windows.Forms.Timer();
         private MessageToaster m_MessageToaster;
         private float jumpByTimeAcc;
         private TimelineJumpUnit jumpByTimeLastUnit = TimelineJumpUnit.Second;
@@ -502,6 +502,8 @@ namespace Kinovea.ScreenManager
             timerCallback = MultimediaTimer_Tick;
             selectionTimer.Interval = 10000;
             selectionTimer.Tick += SelectionTimer_OnTick;
+            cacheSnapshotTimer.Interval = 100;
+            cacheSnapshotTimer.Tick += CacheSnapshotTimer_OnTick;
 
             // The slider value range is arbitrary [0..1000].
             // The speed factor range corresponds to the factor wrt nominal video playback speed.
@@ -552,6 +554,7 @@ namespace Kinovea.ScreenManager
             EnableDisableExportButtons(true);
             buttonPlay.Image = Resources.flatplay;
             sldrSpeed.Enabled = false;
+            UpdateShowCacheInTimeline();
 
             screenDescriptor = null;
             infobar.ScreenDescriptor = null;
@@ -632,11 +635,12 @@ namespace Kinovea.ScreenManager
             //---------------------------------------------------------------------------------------
             //DoInvalidate();
             log.DebugFormat("First frame loaded: [{0}]. {1} ms.", currentTimestamp, stopwatchLoad.ElapsedMilliseconds);
+            
             UpdatePositionUI();
+            UpdateShowCacheInTimeline();
 
             firstTimestamp = currentTimestamp;
             workingZone = new VideoSection(firstTimestamp, m_FrameServer.VideoReader.WorkingZone.End);
-            
             if (!m_FrameServer.VideoReader.CanChangeWorkingZone)
             {
                 EnableDisableWorkingZoneControls(false);
@@ -790,7 +794,7 @@ namespace Kinovea.ScreenManager
 
             KVAImported?.Invoke(this, EventArgs.Empty);
 
-            trkFrame.UpdateMarkers(m_FrameServer.Metadata);
+            trkFrame.UpdateMetadata(m_FrameServer.Metadata);
             UpdateTimeLabels();
             DoInvalidate();
         }
@@ -841,6 +845,27 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
+        /// Enable or disabel the cache snapshot display in the timeline,
+        /// by starting/stoping the timer.
+        /// </summary>
+        private void UpdateShowCacheInTimeline()
+        {
+            bool show = PreferencesManager.PlayerPreferences.ShowCacheInTimeline;
+            bool enable = show && m_FrameServer.Loaded;
+
+            trkFrame.ShowCacheSnapshot = enable;
+            cacheSnapshotTimer.Enabled = enable;
+            if (enable)
+            {
+                trkFrame.UpdateCacheSnapshot(m_FrameServer.VideoReader.CacheSnapshot);
+            }
+            else
+            {
+                trkFrame.UpdateCacheSnapshot(null);
+            }
+        }
+
+        /// <summary>
         /// Update the infobar after switching the screen from replay to normal or vice versa.
         /// watchedFolderPath should be the real folder being watched on the file system, or null.
         /// </summary>
@@ -856,7 +881,7 @@ namespace Kinovea.ScreenManager
         /// </summary>
         public void TimeOriginUpdatedFromSync()
         {
-            trkFrame.UpdateMarkers(m_FrameServer.Metadata);
+            trkFrame.UpdateMetadata(m_FrameServer.Metadata);
             UpdateCurrentPositionLabels(currentTimestamp);
         }
 
@@ -1004,10 +1029,9 @@ namespace Kinovea.ScreenManager
             interactiveFrameTracker = PreferencesManager.PlayerPreferences.InteractiveFrameTracker;
             drawOnPlay = PreferencesManager.PlayerPreferences.DrawOnPlay;
             timecodeFormat = PreferencesManager.PlayerPreferences.TimecodeFormat;
-            showCacheInTimeline = PreferencesManager.PlayerPreferences.ShowCacheInTimeline;
-            trkFrame.ShowCacheInTimeline = showCacheInTimeline;
             defaultFadingEnabled = PreferencesManager.PlayerPreferences.DefaultFading.Enabled;
             enablePixelFiltering = PreferencesManager.PlayerPreferences.EnablePixelFiltering;
+            UpdateShowCacheInTimeline();
 
             // Update default fading for all drawings.
 
@@ -1706,6 +1730,8 @@ namespace Kinovea.ScreenManager
         {
             selectionTimer.Tick -= SelectionTimer_OnTick;
             selectionTimer.Dispose();
+            cacheSnapshotTimer.Tick -= CacheSnapshotTimer_OnTick;
+            cacheSnapshotTimer.Dispose();
         }
 
         /// <summary>
@@ -1806,7 +1832,7 @@ namespace Kinovea.ScreenManager
         /// </summary>
         public void UpdateFramesMarkers()
         {
-            trkFrame.UpdateMarkers(m_FrameServer.Metadata);
+            trkFrame.UpdateMetadata(m_FrameServer.Metadata);
         }
         private void ShowBorder(bool _bShow)
         {
@@ -2222,7 +2248,7 @@ namespace Kinovea.ScreenManager
             log.DebugFormat("Changing time origin from player. {0} -> {1}.", m_FrameServer.Metadata.TimeOrigin, currentTimestamp);
 
             m_FrameServer.Metadata.TimeOrigin = currentTimestamp;
-            trkFrame.UpdateMarkers(m_FrameServer.Metadata);
+            trkFrame.UpdateMetadata(m_FrameServer.Metadata);
             UpdateCurrentPositionLabels(currentTimestamp);
             sidePanelKeyframes.UpdateTimecodes();
             if (videoFilterIsActive)
@@ -3018,6 +3044,8 @@ namespace Kinovea.ScreenManager
 
             DoInvalidate();
 
+
+
             UpdatePositionUI();
 
             ReportForSyncMerge();
@@ -3448,6 +3476,14 @@ namespace Kinovea.ScreenManager
             selectionTimer.Stop();
             DoInvalidate();
             OnPoke();
+        }
+
+        private void CacheSnapshotTimer_OnTick(object sender, EventArgs e)
+        {
+            if (!m_FrameServer.Loaded)
+                return;
+
+            trkFrame.UpdateCacheSnapshot(m_FrameServer.VideoReader.CacheSnapshot);
         }
         #endregion
 

@@ -118,7 +118,7 @@ namespace Kinovea.ScreenManager
 
         public void UpdateSyncPosition(long position)
         {
-            trkFrame.UpdateSyncPointMarker(position);
+            trkFrame.MoveSyncPointMarker(position);
             trkFrame.Invalidate();
             UpdateDebug();
         }
@@ -137,7 +137,7 @@ namespace Kinovea.ScreenManager
             else
                 trkFrame.RightHairline = position;
 
-            trkFrame.UpdatePlayHeadMarkers();
+            trkFrame.MovePlayHeadMarkers();
             trkFrame.Invalidate();
         }
 

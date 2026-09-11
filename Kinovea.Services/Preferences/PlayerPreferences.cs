@@ -190,11 +190,6 @@ namespace Kinovea.Services
             get { BeforeRead(); return enableCustomToolsDebugMode; }
             set { enableCustomToolsDebugMode = value; Save(); }
         }
-        public float DefaultReplaySpeed
-        {
-            get { BeforeRead(); return defaultReplaySpeed; }
-            set { defaultReplaySpeed = value; Save(); }
-        }
         public bool DetectImageSequences
         {
             get { BeforeRead(); return detectImageSequences; }
@@ -316,7 +311,6 @@ namespace Kinovea.Services
         private bool enableFiltering = true;
         private bool enableHighSpeedDerivativesSmoothing = true;
         private bool enableCustomToolsDebugMode = false;
-        private float defaultReplaySpeed = 1.0f;
         private bool detectImageSequences = true;
         private int preloadKeyframes = 20;
         private string playbackKVA;
@@ -408,7 +402,6 @@ namespace Kinovea.Services
 
             writer.WriteElementString("EnableFiltering", XmlHelper.WriteBoolean(enableFiltering));
             writer.WriteElementString("EnableCustomToolsDebugMode", XmlHelper.WriteBoolean(enableCustomToolsDebugMode));
-            writer.WriteElementString("DefaultReplaySpeed", defaultReplaySpeed.ToString("0", CultureInfo.InvariantCulture));
             writer.WriteElementString("DetectImageSequences", XmlHelper.WriteBoolean(detectImageSequences));
             writer.WriteElementString("PreloadKeyframes", preloadKeyframes.ToString());
             writer.WriteElementString("PlaybackKVA", playbackKVA);
@@ -540,10 +533,6 @@ namespace Kinovea.Services
                         break;
                     case "EnableCustomToolsDebugMode":
                         enableCustomToolsDebugMode = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
-                        break;
-                    case "DefaultReplaySpeed":
-                        string str = reader.ReadElementContentAsString();
-                        defaultReplaySpeed = float.Parse(str, CultureInfo.InvariantCulture);
                         break;
                     case "DetectImageSequences":
                         detectImageSequences = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());

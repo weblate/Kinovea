@@ -148,6 +148,15 @@ namespace Kinovea { namespace Video { namespace FFMpeg
             }
         }
 
+        virtual property Kinovea::Video::CacheSnapshot^ CacheSnapshot
+        {
+            Kinovea::Video::CacheSnapshot^ get() override
+            {
+                return mFrameContainer != nullptr ? mFrameContainer->Snapshot : nullptr;
+            }
+        }
+
+
     // Construction / Destruction.
     public:
         VideoReaderFFMpeg();

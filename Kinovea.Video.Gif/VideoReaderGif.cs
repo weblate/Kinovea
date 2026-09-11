@@ -37,6 +37,12 @@ namespace Kinovea.Video.GIF
         public override VideoFrame Current {
             get { return cache.CurrentFrame;}
         }
+
+        public override CacheSnapshot CacheSnapshot
+        {
+            get { return cache.Snapshot; }
+        }
+
         public override VideoSection WorkingZone {
             get { return cache.WorkingZone; }
         }
