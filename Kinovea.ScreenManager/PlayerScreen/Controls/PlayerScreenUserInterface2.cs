@@ -895,7 +895,12 @@ namespace Kinovea.ScreenManager
                 return;
 
             if (!m_FrameServer.VideoReader.CanChangeWorkingZone)
+            {
+                // We still need to initialize the timeline control.
+                workingZone = m_FrameServer.VideoReader.WorkingZone;
+                trkFrame.SetBounds(workingZone, m_FrameServer.VideoReader.Info.AverageTimeStampsPerFrame);
                 return;
+            }
 
             // Remember if we were previously aligned with the start of the working zone.
             // If so, keep it that way, otherwise use the absolute value.
