@@ -285,8 +285,8 @@ namespace Kinovea.Root
             NudHelper.FixNudScroll(nudReplacementFramerate);
 
             // tooltip
-            string toolTipHighSpeedRecording = "Very high frame rates can be difficult for video players to play reliably.\n" + 
-                "Kinovea can preserve every captured frame while saving the video at a lower playback frame rate, producing smooth slow-motion playback.";
+            string toolTipHighSpeedRecording = "High frame rates can be difficult for video players to play reliably.\n" + 
+                "When this option is enabled all captured frames are preserved but the video is saved with a lower playback frame rate, producing slow-motion playback.";
 
             toolTip1.SetToolTip(btnHighspeedHelp, toolTipHighSpeedRecording);
             btnHighspeedHelp.Click += (s, e) => {
