@@ -3839,7 +3839,7 @@ void VideoReaderFFMpeg::LogFileInfo()
     log->DebugFormat("[Stream] - Average timestamps per seconds: {0}", mVideoInfo.AverageTimeStampsPerSeconds);
 
     // Codec
-    log->DebugFormat("[Codec] - \"{0}\" (\"{1}\")", 
+    log->DebugFormat("[Codec] - {0} ({1})", 
         gcnew String(mVideoCodecCtx->codec->long_name),
         gcnew String(mVideoCodecCtx->codec->name));
 
@@ -3856,7 +3856,6 @@ void VideoReaderFFMpeg::LogFileInfo()
     else
     {
         log->DebugFormat("[Codec] - Hardware decoding: No");
-        log->DebugFormat("[Codec] - Software decoding threads: {0}", mVideoCodecCtx->thread_count);
     }
 
     // Calculated values

@@ -2639,11 +2639,12 @@ namespace Kinovea.ScreenManager
             // Stretch factor, zoom, or container size have been updated.
             // Update the presentation size and signal the change to the reader.
             // During the process, stretch may be forced to a different value.
-            bool rotatedCanvas = videoFilterIsActive ? 
-                m_FrameServer.Metadata.ActiveVideoFilter.RotatedCanvas : 
-                false;
+            //bool rotatedCanvas = videoFilterIsActive ? 
+            //    m_FrameServer.Metadata.ActiveVideoFilter.RotatedCanvas : 
+            //    false;
 
-            m_viewportManipulator.Manipulate(rotatedCanvas, panelCenter.Size, targetStretch, m_fill);
+            //m_viewportManipulator.Manipulate(panelCenter.Size, targetStretch, m_fill);
+            m_viewportManipulator.Manipulate2(panelCenter.Size, targetStretch, m_fill);
 
             // Refactoring in progress. Ultimately only the displayRectangle will remain.
             pbSurfaceScreen.Location = m_viewportManipulator.RenderingLocation;
