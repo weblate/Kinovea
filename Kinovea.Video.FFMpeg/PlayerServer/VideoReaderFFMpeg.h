@@ -404,7 +404,11 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         /// Look for a hardware decoder for the given codec.
         /// If found initialize the codec context and return true.
         /// If anything fails, return false and leave the codec context untouched.
-        bool TryInitializeHardwareDecoder(AVCodecID codecId, const AVStream* videoStream, AVCodecContext*& videoCodecCtx);
+        bool TryInitializeHardwareDecoder(
+            AVCodecID codecId, 
+            const AVStream* videoStream, 
+            AVCodecContext*& videoCodecCtx, 
+            AVHWDeviceType deviceType);
         
         /// Initialize the software decoder for the given codec.
         OpenVideoResult InitSoftwareDecoder(AVCodecID codecId, const AVStream* videoStream, bool forSummary, AVCodecContext*& videoCodecCtx);

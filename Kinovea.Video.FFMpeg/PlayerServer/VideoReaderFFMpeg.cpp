@@ -367,11 +367,21 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
     bool enableHardwareDecoding = PreferencesManager::PlayerPreferences->EnableHardwareDecoding;
     if (!forSummary && enableHardwareDecoding)
     {
-        initializedDecoder = TryInitializeHardwareDecoder(videoCodecId, videoStream, videoCodecCtx);
+        // Try CUDA first.
+        // It is usually faster and it supports scaling in addition to decoding.
+        AVHWDeviceType deviceType = AV_HWDEVICE_TYPE_CUDA;
+        initializedDecoder = TryInitializeHardwareDecoder(videoCodecId, videoStream, videoCodecCtx, deviceType);
+        if (!initializedDecoder)
+        {
+            // CUDA failed, try D3D11VA.
+            deviceType = AV_HWDEVICE_TYPE_D3D11VA;
+            initializedDecoder = TryInitializeHardwareDecoder(videoCodecId, videoStream, videoCodecCtx, deviceType);
+        }
     }
 
     if (!initializedDecoder)
     {
+        // Hardware decoding is disabled or failed, fall back to software decoding.
         result = InitSoftwareDecoder(videoCodecId, videoStream, forSummary, videoCodecCtx);
         if (result != OpenVideoResult::Success)
         {
@@ -552,19 +562,20 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
 }
 
 
-bool VideoReaderFFMpeg::TryInitializeHardwareDecoder(AVCodecID codecId, const AVStream* videoStream, AVCodecContext*& videoCodecCtx)
+bool VideoReaderFFMpeg::TryInitializeHardwareDecoder(AVCodecID codecId, const AVStream* videoStream, AVCodecContext*& videoCodecCtx, AVHWDeviceType deviceType)
 {
     // Look for a hardware decoder that supports the requested codec and device type.
     // Sometimes calling avcodec_find_decoder(videoCodecId) will return a software-based decoder
-    // even if a hardware decoder is available (ex: AV1).
+    // even if a hardware decoder is available.
+    // So we look through the entire list of decoders for one that matches the codec and the device.
+    // The way it works is that each codec may have multiple implementations, 
+    // for example AV1 has "libdav1d", "libaom-av1", and an ffmpeg native "av1".
+    // Then each implementation may support multiple hardware configurations, for example "cuda", "d3d11va", "dxva2", etc.
     void* opaque = nullptr;
     const AVCodec* videoCodec = nullptr;
 
     const char* name = avcodec_get_name(codecId);
     String^ codecName = gcnew String(name);
-
-    // For now we only look for D3D11 hardware decoding.
-    AVHWDeviceType deviceType = AV_HWDEVICE_TYPE_D3D11VA;
     String^ deviceTypeName = gcnew String(av_hwdevice_get_type_name(deviceType));
     while ((videoCodec = av_codec_iterate(&opaque)) != nullptr)
     {
@@ -575,7 +586,7 @@ bool VideoReaderFFMpeg::TryInitializeHardwareDecoder(AVCodecID codecId, const AV
             continue;
 
         String^ decoderName = gcnew String(videoCodec->name);
-        log->DebugFormat("Found decoder \"{0}\" for codec \"{1}\".", decoderName, codecName);
+        log->DebugFormat("Decoder \"{0}\" for codec \"{1}\".", decoderName, codecName);
 
         for (int i = 0; ; i++)
         {
@@ -586,14 +597,14 @@ bool VideoReaderFFMpeg::TryInitializeHardwareDecoder(AVCodecID codecId, const AV
                 break;
             }
 
-            //log->DebugFormat("Decoder \"{0}\" supports device type \"{1}\" with pixel format \"{2}\".",
-            //    decoderName, 
-            //    gcnew String(av_hwdevice_get_type_name(config->device_type)), 
-            //    GetPixelFormatString(config->pix_fmt));
+            /*log->DebugFormat("Decoder \"{0}\" supports device type \"{1}\" with pixel format \"{2}\".",
+                decoderName, 
+                gcnew String(av_hwdevice_get_type_name(config->device_type)), 
+                GetPixelFormatString(config->pix_fmt));*/
 
             if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) && config->device_type == deviceType)
             {
-                log->DebugFormat("Found hardware decoder \"{0}\" with device type \"{1}\" and pixel format \"{2}\".",
+                log->DebugFormat("Found hardware decoder \"{0}\" with device type \"{1}\". Pixel format: \"{2}\".",
                     decoderName,
                     deviceTypeName,
                     GetPixelFormatString(config->pix_fmt));
@@ -631,7 +642,7 @@ bool VideoReaderFFMpeg::TryInitializeHardwareDecoder(AVCodecID codecId, const AV
     AVBufferRef* pHwDeviceContext = nullptr;
     res = av_hwdevice_ctx_create(
         &pHwDeviceContext,
-        AV_HWDEVICE_TYPE_D3D11VA,
+        deviceType,
         nullptr,    // default adapter
         nullptr,
         0);
@@ -646,9 +657,8 @@ bool VideoReaderFFMpeg::TryInitializeHardwareDecoder(AVCodecID codecId, const AV
 
     // Hardware decoders typically support multiple hardware pixel formats, 
     // so ffmpeg will call us back to select the one we want.
-    // Wrap the hardware pixel format we found in a native struct that we store 
-    // in the codec opaque field. When we get the call back we'll use it to match
-    // the format in the list of formats supported by the decoder.
+    // Wrap the hardware pixel format we are interested in in a native struct stored in the codec opaque field. 
+    // When we get the call back we'll use it to match the format in the list of formats supported by the decoder.
     mHardwareDecodeState = new HardwareDecodeState();
     mHardwareDecodeState->PixelFormat = mHwPixelFormat;
     videoCodecCtx->opaque = mHardwareDecodeState;
@@ -673,7 +683,9 @@ bool VideoReaderFFMpeg::TryInitializeHardwareDecoder(AVCodecID codecId, const AV
 
     mSoftwareFrame = av_frame_alloc();
 
-    log->DebugFormat("Hardware decoder initialized for codec \"{0}\".", codecName);
+    log->DebugFormat("Hardware decoder initialized for codec \"{0}\" ({1}).", 
+        codecName, 
+        GetPixelFormatString(mHwPixelFormat));
 
     return true;
 }
@@ -762,7 +774,10 @@ OpenVideoResult VideoReaderFFMpeg::InitSoftwareDecoder(
         return OpenVideoResult::CodecNotOpened;
     }
 
-    log->DebugFormat("Software decoder initialized for codec \"{0}\".", gcnew String(videoCodec->name));
+    if (!forSummary)
+    {
+        log->DebugFormat("Software decoder initialized for codec \"{0}\".", gcnew String(videoCodec->name));
+    }
 
     return OpenVideoResult::Success;
 }
@@ -3540,22 +3555,23 @@ void VideoReaderFFMpeg::LogFileInfo()
     log->DebugFormat("[Stream] - Average timestamps per seconds: {0}", mVideoInfo.AverageTimeStampsPerSeconds);
 
     // Codec
-    log->DebugFormat("[Codec] - Name: \"{0}\" (\"{1}\")", 
-        gcnew String(mVideoCodecCtx->codec->name),
-        gcnew String(mVideoCodecCtx->codec->long_name));
+    log->DebugFormat("[Codec] - \"{0}\" (\"{1}\")", 
+        gcnew String(mVideoCodecCtx->codec->long_name),
+        gcnew String(mVideoCodecCtx->codec->name));
 
     log->DebugFormat("[Codec] - TimeBase: {0}/{1}", mVideoCodecCtx->time_base.num, mVideoCodecCtx->time_base.den);
     log->DebugFormat("[Codec] - Bit rate: {0:0.00} Mbit/s", mVideoCodecCtx->bit_rate / 1e6);
     log->DebugFormat("[Codec] - Has B Frames: {0}", mVideoCodecCtx->has_b_frames ? "Yes" : "No");
     log->DebugFormat("[Codec] - Image size: {0}x{1} px", mVideoCodecCtx->width, mVideoCodecCtx->height);
     log->DebugFormat("[Codec] - Image rotation: {0}", mVideoInfo.OriginalRotation.ToString());
-    log->DebugFormat("[Codec] - Hardware decoding: {0}", mHwPixelFormat == AV_PIX_FMT_NONE ? "Not supported" : "Supported");
+
     if (mHwPixelFormat != AV_PIX_FMT_NONE)
     {
-        log->DebugFormat("[Codec] - Hardware pixel format: {0}", GetPixelFormatString(mHwPixelFormat));
+        log->DebugFormat("[Codec] - Hardware decoding: Yes. Pixel format: {0}", GetPixelFormatString(mHwPixelFormat));
     }
     else
     {
+        log->DebugFormat("[Codec] - Hardware decoding: No");
         log->DebugFormat("[Codec] - Software decoding threads: {0}", mVideoCodecCtx->thread_count);
     }
 
