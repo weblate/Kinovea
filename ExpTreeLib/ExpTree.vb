@@ -415,6 +415,27 @@ XIT:    tv1.EndUpdate()
             m_shortcuts.Add(GetCShItem(shortcut))
         Next
     End Sub
+
+    Public Sub RemoveVirtualShortcut(ByVal oldShortcut As String)
+
+        ' Find the old shortcut in the list and remove it
+        ' if it's in first place in the list.
+        Dim oldCSI As CShItem = GetCShItem(oldShortcut)
+        If m_shortcuts.Count > 0 AndAlso m_shortcuts(0).Equals(oldCSI) Then
+            m_shortcuts.RemoveAt(0)
+        End If
+
+    End Sub
+
+    Public Sub AddVirtualShortcut(ByVal newShortcut As String)
+        ' Insert the new shortcut as the first element of the list.
+        Dim newCSI As CShItem = GetCShItem(newShortcut)
+        m_shortcuts.Insert(0, newCSI)
+
+
+    End Sub
+
+
 #End Region
 
 #Region "   SelectNode"

@@ -359,6 +359,10 @@ namespace Kinovea.FileBrowser
         /// </summary>
         private void AddVirtualShortcut(string pathFolder)
         {
+            if (pathFolder == lastOpenedDirectory)
+                return;
+
+            string oldLastOpenedDirectory = lastOpenedDirectory;
             lastOpenedDirectory = pathFolder;
 
             // If the shortcuts list is already on the right folder don't do anything.
@@ -368,9 +372,19 @@ namespace Kinovea.FileBrowser
             if (pathFolder.StartsWith("."))
                 return;
 
-            // Reload the shortcut tree with the virtual shortcut in it (via lastOpenedDirectory variable).
-            // This does not select any item in the tree and does not refresh the file list.
-            ReloadShortcuts();
+            // Check if the previous opened directory was a true shortcut or a virtual one.
+            if (!string.IsNullOrEmpty(oldLastOpenedDirectory))
+            {
+                if (!PreferencesManager.FileExplorerPreferences.ShortcutFolders.Any(sf => sf.Location == oldLastOpenedDirectory))
+                {
+                    // The previous opened directory was a virtual shortcut, remove it.
+                    etShortcuts.RemoveVirtualShortcut(oldLastOpenedDirectory);
+                }
+            }
+
+            // Add the new virtual shortcut and reload.
+            etShortcuts.AddVirtualShortcut(pathFolder);
+            etShortcuts.RebuildFromRoot();
         }
 
         private void UpdateSessionHistory(string pathFolder)
@@ -501,6 +515,7 @@ namespace Kinovea.FileBrowser
             List<string> shortcuts = GetShortcuts();
 
             // Create items out of the paths and populate the tree.
+            // FIXME: This call can be quite long if we have more than a handful of shortcuts.
             etShortcuts.SetShortcuts(new ArrayList(shortcuts));
 
             // This causes the tree view to be rebuilt at the root and expanded.
@@ -509,7 +524,8 @@ namespace Kinovea.FileBrowser
         }
 
         /// <summary>
-        /// Get a list of the saved shortcut paths including the last opened directory.
+        /// Get the saved shortcut plus the last opened directory.
+        /// If the last opened directory wasn't in the existing shortcuts it's added at the top.
         /// </summary>
         private List<string> GetShortcuts()
         {
@@ -529,13 +545,17 @@ namespace Kinovea.FileBrowser
                     shortcuts.Add(shortcut.Location);
 
                     if (shortcut.Location == lastOpenedDirectory)
+                    {
                         dir = null;
+                    }
                 }
             }
 
             // Inject the last opened directory if it's not already in the list of saved shortcuts.
             if (!string.IsNullOrEmpty(dir))
+            {
                 shortcuts.Insert(0, dir);
+            }
 
             return shortcuts;
         }
