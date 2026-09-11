@@ -2277,24 +2277,47 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
     //--------------------------------------
    
     //--------------------------------------
-    // Hardware scaling is currently not supported.
+    // Hardware scaling.
     // 
-    // Tried to enable hardware scaling but it doesn't work for now.
+    // Tried hardware scaling on D3D11VA but it doesn't work for now.
     // The creation of the filter graph fails because the D3D11 texture cannot 
-    // be created. It seems to be related to how the filter is implemented and
-    // how it assumes it is added in an encoding context.
-    // For now we'll consider it a limitation of ffmpeg.
-    // To re-enable:
-    // check PreferencesManager::PlayerPreferences->EnableHardwareScaling;
-    // check decodedFrame size > mScaledSize.
-    // create a hardware scaling filter graph.
+    // be created. It seems to be related to how the filter is implemented in ffmpeg and
+    // how it assumes it is in an encoding context.
+    // 
+    // Hardware scaling is very beneficial because not only the scaling itself is on the GPU
+    // but the download of the frame from the GPU to the CPU is smaller.
     //--------------------------------------
 
     
     bool isHardwareDecoding = decodedFrame->format == mHwPixelFormat && decodedFrame->hw_frames_ctx != nullptr;
     
+    //bool allowHardwareScaling = PreferencesManager::PlayerPreferences->EnableHardwareScaling;
+
+    // For now we only support hardware scaling for CUDA, see comment above.
+    bool shouldUseHardwareScaling =
+            isHardwareDecoding &&
+            mHwPixelFormat == AV_PIX_FMT_CUDA &&
+            (decodedFrame->width != mScaledSize.Width || decodedFrame->height != mScaledSize.Height);
+
     AVFrame* frameToConvert = nullptr;
-    if (isHardwareDecoding)
+
+    if (shouldUseHardwareScaling)
+    {
+        AVFrame* hwScaledFrame = ScaleHardwareFrame(decodedFrame);
+        if (hwScaledFrame != nullptr)
+        {
+            // Download the hardware-scaled frame to a software frame, then continue with 
+            // the normal sws_scale_frame. Since we use the dynamic API, it will see 
+            // that the frame is already at the target size and will skip the scaling step.
+            frameToConvert = GetSoftwareFrame(hwScaledFrame);
+        }
+        else
+        {
+            // If hardware scaling fails we fall back to software scaling.
+            frameToConvert = GetSoftwareFrame(decodedFrame);
+        }
+    }
+    else if (isHardwareDecoding)
     {
         frameToConvert = GetSoftwareFrame(decodedFrame);
     }
@@ -2314,9 +2337,9 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
     // 
     // The way the new YADIF filter works is very sequential, it requires
     // the previous and next frame and keep them around internally.
-    // This breaks seems to break many assumptions in the code, for example when we
-    // decode the very first frame on the main thread for seeking, we expect to get 
-    // something, but YADIF returns error EAGAIN.
+    // This breaks many assumptions in Kinovea compared to the old version.
+    // for example when we decode the first frame on the main thread for seeking, 
+    // we expect to always get something, but YADIF returns error EAGAIN.
     //
     // Navigating the timeline is very broken when interlacing is active.
     // Also the normal scaling can be done without a filter graph and works better.
@@ -2325,18 +2348,18 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
 
     // Allocate and prepare the converted frame.
     AVFrame* convertedFrame = av_frame_alloc();
-    //if (!mVideoGeometry->Deinterlacing)
-    {
-        // If the frame is interlaced copy the flag so ffmpeg doesn't complain 
-        // and does the correct scaling on the fields.
-        convertedFrame->flags = decodedFrame->flags & 
-            (AV_FRAME_FLAG_INTERLACED | AV_FRAME_FLAG_TOP_FIELD_FIRST);
-    }
-
-    // Preallocate buffers with packed alignment.
     convertedFrame->format = sConvertPixelFormat;
     convertedFrame->width = mScaledSize.Width;
     convertedFrame->height = mScaledSize.Height;
+
+    // Even if we don't deinterlace, the scaling complains if we try to 
+    // convert an interlaced frame into a non-interlaced one.
+    // Copy the flag over to make it work. This also make ffmpeg do 
+    // the scaling on the fields instead of the whole frame.
+    convertedFrame->flags = decodedFrame->flags & (AV_FRAME_FLAG_INTERLACED | AV_FRAME_FLAG_TOP_FIELD_FIRST);
+    
+    // Preallocate buffers with packed alignment. Other places in the codebase rely on that, 
+    // for example when we pass the Bitmaps to OpenCV things break if the stride is not packed.
     int res = av_frame_get_buffer(convertedFrame, 1);
     if (res < 0)
     {
@@ -2545,6 +2568,267 @@ bool VideoReaderFFMpeg::ScaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, in
     }
 
     return true;
+}
+
+
+AVFrame* VideoReaderFFMpeg::ScaleHardwareFrame(AVFrame* srcFrame)
+{
+    // Recreate the graph if needed.
+
+    if (mHwScaleGraph == nullptr ||
+        mMemoSrcWidth != srcFrame->width || mMemoSrcHeight != srcFrame->height || mMemoSrcFormat != srcFrame->format ||
+        mMemoDstWidth != mScaledSize.Width || mMemoDstHeight != mScaledSize.Height)
+    {
+        bool created = CreateHardwareScalingGraph(srcFrame, mScaledSize.Width, mScaledSize.Height);
+        if (!created)
+        {
+            log->Error("ScaleHardwareFrame: graph creation failed.");
+            return nullptr;
+        }
+    }
+
+    AVFrame* hwScaledFrame = av_frame_alloc();
+    if (hwScaledFrame == nullptr)
+    {
+        log->Error("av_frame_alloc failed.");
+        return nullptr;
+    }
+
+    // Feed the source frame to the graph.
+    int ret = av_buffersrc_add_frame_flags(mSourceFilterCtx, srcFrame, AV_BUFFERSRC_FLAG_KEEP_REF);
+    if (ret < 0)
+    {
+        LogFFMpegError("av_buffersrc_add_frame_flags", ret);
+        //av_frame_free(&filteredFrame);
+        return nullptr;
+    }
+
+    // Retrieve the processed frame.
+    //av_frame_unref(mHwScaledFrame);
+    ret = av_buffersink_get_frame(mSinkFilterCtx, hwScaledFrame);
+    if (ret < 0)
+    {
+        LogFFMpegError("av_buffersink_get_frame", ret);
+    }
+
+    // expected:
+    //mHwScaledFrame->format == AV_PIX_FMT_D3D11
+    //mHwScaledFrame->width == dstWidth
+    //mHwScaledFrame->height == dstHeight
+    //mHwScaledFrame->hw_frames_ctx != nullptr
+    return hwScaledFrame;
+}
+
+
+bool VideoReaderFFMpeg::CreateHardwareScalingGraph(AVFrame* sourceFrame, int dstWidth, int dstHeight)
+{
+    //---------------------------------------
+    // Graph
+    //---------------------------------------
+
+    // This graph must be recreated when any of the following change:
+    // - destination width/height (change when preview size change).
+    // - source width/height (shouldn't change).
+    // - destination format (shouldn't change).
+    // - source format (shouldn't change).
+    // - hw_frames_ctx
+
+    FreeVideoFilterGraph();
+
+    mHwScaleGraph = avfilter_graph_alloc();
+    if (mHwScaleGraph == nullptr)
+    {
+        log->Error("Failed to allocate hardware scaling graph.");
+        return false;
+    }
+
+    const AVFilter* sourceFilter = avfilter_get_by_name("buffer");
+    const AVFilter* scaleFilter = avfilter_get_by_name("scale_cuda");
+    const AVFilter* sinkFilter = avfilter_get_by_name("buffersink");
+    if (!sourceFilter || !scaleFilter || !sinkFilter)
+    {
+        log->Error("Failed to allocate hardware scaling filter.");
+        return false;
+    }
+
+    //------------------------------
+    // Source buffer filter
+    //------------------------------
+
+    // Note: there are two ways to create filters.
+    // 1. avfilter_graph_create_filter(): allocate + initialize immediately. 
+    // Should be used for passing parameters as string in a single call.
+    // 
+    // 2. avfilter_graph_alloc_filter(): allocate only, then configure in code, then initialize manually.
+    // We need the second style for the source here because hw_frames_ctx is part of the configuration.
+
+    AVFilterContext* sourceFilterCtx = avfilter_graph_alloc_filter(mHwScaleGraph, sourceFilter, "hw_scale_source");
+    if (sourceFilterCtx == nullptr)
+    {
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+    AVBufferSrcParameters* parameters = av_buffersrc_parameters_alloc();
+    if (parameters == nullptr)
+    {
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+    parameters->format = static_cast<AVPixelFormat>(sourceFrame->format);
+    parameters->width = sourceFrame->width;
+    parameters->height = sourceFrame->height;
+    parameters->sample_aspect_ratio = sourceFrame->sample_aspect_ratio;
+    parameters->color_space = sourceFrame->colorspace;
+    parameters->color_range = sourceFrame->color_range;
+    parameters->time_base = mFormatCtx->streams[mVideoStreamIndex]->time_base;
+    parameters->hw_frames_ctx = sourceFrame->hw_frames_ctx;
+
+    int ret = av_buffersrc_parameters_set(sourceFilterCtx, parameters);
+    av_free(parameters);
+
+    if (ret < 0)
+    {
+        LogFFMpegError("Failed to create buffer source filter.", ret);
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+    // Explicitly initialize the filter.
+    ret = avfilter_init_dict(sourceFilterCtx, nullptr);
+    if (ret < 0)
+    {
+        LogFFMpegError("Failed to create buffer source filter.", ret);
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+    mSourceFilterCtx = sourceFilterCtx;
+
+    //------------------------------
+    // Scaling.
+    //------------------------------
+    // sw_format should be AV_PIX_FMT_NV12.
+    AVHWFramesContext* hwFramesCtx = reinterpret_cast<AVHWFramesContext*>(sourceFrame->hw_frames_ctx->data);
+    AVPixelFormat swFormat = hwFramesCtx->sw_format;
+
+    // Note that each backend has different arguments.
+    // d3d11va: width=1920:height=1080:format=nv12
+    // cuda: w=1920:h=1080:format=nv12:interp_algo=bilinear
+    AVFilterContext* hwScaleFilterCtx = nullptr;
+    const char* formatName = av_get_pix_fmt_name(swFormat);
+    char args[256];
+    snprintf(args, sizeof(args), "w=%d:h=%d:format=%s:interp_algo=bilinear", dstWidth, dstHeight, formatName);
+
+    ret = avfilter_graph_create_filter(
+        &hwScaleFilterCtx,
+        scaleFilter,
+        "hw_scale",
+        args,
+        nullptr,
+        mHwScaleGraph);
+
+    if (ret < 0)
+    {
+        LogFFMpegError("Failed to create scale filter context", ret);
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+    mHwScaleFilterCtx = hwScaleFilterCtx;
+
+    ret = avfilter_link(mSourceFilterCtx, 0, mHwScaleFilterCtx, 0);
+    if (ret < 0)
+    {
+        LogFFMpegError("Failed to link hardware scaling filter.", ret);
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+
+    //------------------------------
+    // Buffersink
+    //------------------------------
+    AVFilterContext* sinkFilterCtx = nullptr;
+    ret = avfilter_graph_create_filter(
+        &sinkFilterCtx,
+        sinkFilter,
+        "hw_scale_sink",
+        nullptr,
+        nullptr,
+        mHwScaleGraph);
+
+    if (ret < 0)
+    {
+        LogFFMpegError("avfilter_graph_create_filter", ret);
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+    mSinkFilterCtx = sinkFilterCtx;
+
+    ret = avfilter_link(mHwScaleFilterCtx, 0, mSinkFilterCtx, 0);
+    if (ret < 0)
+    {
+        LogFFMpegError("avfilter_link", ret);
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+
+    // Diagnostics
+    log->DebugFormat("source format: {0}, hwFramesCtx->format: {1}, ->sw_format: {2}, source size: {3}x{4}, dest size: {5}x{6}.",
+        GetPixelFormatString(static_cast<AVPixelFormat>(sourceFrame->format)),
+        GetPixelFormatString(hwFramesCtx->format),
+        GetPixelFormatString(hwFramesCtx->sw_format),
+        sourceFrame->width, sourceFrame->height,
+        dstWidth, dstHeight);
+
+    // This is what actually creates the resources. 
+    // If the underlying API can't create the hardware texture it fails here.
+    ret = avfilter_graph_config(mHwScaleGraph, nullptr);
+    if (ret < 0)
+    {
+        LogFFMpegError("avfilter_graph_config", ret);
+        FreeVideoFilterGraph();
+        return false;
+    }
+
+    // Memorize some values to detect if we need to rebuild the filter.
+    mMemoSrcWidth = sourceFrame->width;
+    mMemoSrcHeight = sourceFrame->height;
+    mMemoSrcFormat = static_cast<AVPixelFormat>(sourceFrame->format);
+    mMemoDstWidth = dstWidth;
+    mMemoDstHeight = dstHeight;
+
+    return true;
+}
+
+
+void VideoReaderFFMpeg::FreeVideoFilterGraph()
+{
+    // Note: the member variables are on managed-heap and can be moved by the GC at any time.
+    // The CLR is allowed to move the whole VideoReaderFFMpeg object,  and the memory location of say, 
+    // mFilteredFrame can change, so we can't directly pass their address.
+    // &mFilteredFrame has type interior_ptr<AVFrame*>, not AVFrame**. 
+    // We can either use a pin_ptr or a temporary variable.
+
+    // Hardware scaling
+    AVFilterGraph* pHwScaleGraph = mHwScaleGraph;
+    avfilter_graph_free(&pHwScaleGraph);
+    mHwScaleGraph = nullptr;
+
+    mSourceFilterCtx = nullptr;
+    mHwScaleFilterCtx = nullptr;
+    mSinkFilterCtx = nullptr;
+
+    mMemoSrcWidth = 0;
+    mMemoSrcHeight = 0;
+    mMemoSrcFormat = AV_PIX_FMT_NONE;
+
+    mMemoDstWidth = 0;
+    mMemoDstHeight = 0;
 }
 
 

@@ -366,7 +366,13 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         //------------------------
         
         AVFrame* mSoftwareFrame = nullptr;
-        static bool mCopyFilteredFrame = true;
+        AVFrame* mHwScaledFrame = nullptr;
+
+        // Filter graph for scaling/converting the decoded frame.
+        AVFilterGraph* mHwScaleGraph = nullptr;
+        AVFilterContext* mSourceFilterCtx = nullptr;
+        AVFilterContext* mHwScaleFilterCtx = nullptr;
+        AVFilterContext* mSinkFilterCtx = nullptr;
 
         // Active configuration of the filter graph.
         int mMemoSrcWidth = 0;
@@ -492,6 +498,13 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         AVPixelFormat GetSourceFormat(AVFrame* sourceFrame);
 
         AVFrame* GetSoftwareFrame(AVFrame* decodedFrame);
+
+        AVFrame* ScaleHardwareFrame(AVFrame* srcFrame);
+
+        bool CreateHardwareScalingGraph(
+            AVFrame* sourceFrame, int dstWidth, int dstHeight);
+
+        void FreeVideoFilterGraph();
 
         //-------------------
         // Video geometry
