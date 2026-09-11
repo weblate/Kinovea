@@ -381,9 +381,6 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         AVPixelFormat mMemoSrcFormat = AV_PIX_FMT_NONE;
         int mMemoDstWidth = 0;
         int mMemoDstHeight = 0;
-        bool mMemoDeinterlace = false;
-        bool mShouldResetFilterGraph;
-
 
         //------------------------
         // Debugging

@@ -2272,11 +2272,6 @@ int VideoReaderFFMpeg::SeekTo(int64_t targetTimestamp)
     mPreviousDecodedTimestamp = AV_NOPTS_VALUE;
     mDecodedTimestamp = AV_NOPTS_VALUE;
     mCurrentGopTimestamp = AV_NOPTS_VALUE;
-
-    // Make sure we recreate the filter graph.
-    // This is necessary for YADIF for example, which keeps internal frames and will
-    // output garbage if we don't reset it after a seek.
-    mShouldResetFilterGraph = true;
     return res;
 }
 
@@ -3234,7 +3229,6 @@ void VideoReaderFFMpeg::UpdateFrameSkippingPolicy()
                     mPreviousDecodedTimestamp = AV_NOPTS_VALUE;
                     mDecodedTimestamp = AV_NOPTS_VALUE;
                     mCurrentGopTimestamp = AV_NOPTS_VALUE;
-                    mShouldResetFilterGraph = true;
                 }
             }
 
