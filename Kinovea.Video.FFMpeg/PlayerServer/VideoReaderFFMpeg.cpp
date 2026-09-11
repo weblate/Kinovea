@@ -108,6 +108,12 @@ void VideoReaderFFMpeg::Close()
     AVFrame* pSoftwareFrame = mSoftwareFrame;
     av_frame_free(&pSoftwareFrame);
 
+    AVFrame* pHwScaledFrame = mHwScaledFrame;
+    av_frame_free(&pHwScaledFrame);
+
+    AVFrame* pBayerFrame = mBayerFrame;
+    av_frame_free(&pBayerFrame);
+
     if (mScalingCtx != nullptr)
     {
         SwsContext* pScalingCtx = mScalingCtx;
@@ -2538,21 +2544,25 @@ bool VideoReaderFFMpeg::ScaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, in
     // I've found this faster and simpler than the one based on filter graph.
     // By this point dstFrame is already allocated.
     AVFrame* frameToScale = srcFrame;
-    AVFrame* bayerFrame = nullptr;
 
     AVPixelFormat srcFormat = GetSourceFormat(srcFrame);
     if (srcFormat != srcFrame->format)
     {
-        // Raw Bayer support.
+        // Custom debayering format support.
         // With the dynamic sws_scale_frame API the "contract" for the conversion is directly 
         // taken from the source frame, not from the options in the scaling context, 
         // so we build a clone of the source with the custom pixel format in it.
-        bayerFrame = av_frame_clone(srcFrame);
-        if (bayerFrame == nullptr)
+        if (mBayerFrame == nullptr)
+            mBayerFrame = av_frame_alloc();
+
+        av_frame_unref(mBayerFrame);
+
+        mBayerFrame = av_frame_clone(srcFrame);
+        if (mBayerFrame == nullptr)
             return false;
 
-        bayerFrame->format = srcFormat;
-        frameToScale = bayerFrame;
+        mBayerFrame->format = srcFormat;
+        frameToScale = mBayerFrame;
     }
 
     if (mScalingCtx == nullptr)
@@ -2575,13 +2585,15 @@ bool VideoReaderFFMpeg::ScaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, in
         // If we have already scaled the frame in hardware it will skip the scaling, 
         // otherwise it will perform the scaling now.
         // This is also what let us use multi-threading in case of software scaling.
-        sws_scale_frame(mScalingCtx, dstFrame, srcFrame);
+        sws_scale_frame(mScalingCtx, dstFrame, frameToScale);
     }
     catch (Exception^)
     {
         log->Error("RescaleAndConvert Error : sws_scale failed.");
         return false;
     }
+
+    av_frame_unref(mBayerFrame);
 
     return true;
 }

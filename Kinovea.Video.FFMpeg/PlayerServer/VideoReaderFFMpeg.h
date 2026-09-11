@@ -367,6 +367,7 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         
         AVFrame* mSoftwareFrame = nullptr;
         AVFrame* mHwScaledFrame = nullptr;
+        AVFrame* mBayerFrame = nullptr;
 
         // Filter graph for scaling/converting the decoded frame.
         AVFilterGraph* mHwScaleGraph = nullptr;
