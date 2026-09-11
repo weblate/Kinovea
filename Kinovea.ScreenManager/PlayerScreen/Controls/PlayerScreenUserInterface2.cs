@@ -2963,9 +2963,16 @@ namespace Kinovea.ScreenManager
             log.DebugFormat("Avg frame time: {0:0.000} ms. <<<<<<<<<", loopWatcher.Average);
         }
 
+        /// <summary>
+        /// Compute expected timestamp for the next frame to be presented. 
+        /// </summary>
         private double GetPlaybackElapsedTimestamps()
         {
-            // Compute expected timestamp for the next frame to be presented.
+            if (activePlayerState.Action != PlayerAction.Playback)
+            {
+                return 0;
+            }
+
             double avgtspf = m_FrameServer.VideoReader.Info.AverageTimeStampsPerFrame;
             long now = Stopwatch.GetTimestamp();
             double realElapsedSeconds = (double)(now - m_FrameServer.VideoReader.StartPlaybackEpoch) / Stopwatch.Frequency;

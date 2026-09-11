@@ -11,6 +11,10 @@ using Kinovea.Services;
 namespace Kinovea.ScreenManager
 {
     /// <summary>
+    /// 
+    /// DEPRECATED.
+    /// This class will be removed soon.
+    /// 
     /// ConsumerRealtime. 
     /// Saves frames to file as soon as they are coming from the camera.
     /// The recorder is format agnostic, the format is simply passed along to the writer.

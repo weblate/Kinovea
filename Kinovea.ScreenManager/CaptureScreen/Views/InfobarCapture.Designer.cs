@@ -40,6 +40,7 @@
       this.button5 = new System.Windows.Forms.Button();
       this.button6 = new System.Windows.Forms.Button();
       this.lblDrops = new System.Windows.Forms.Label();
+      this.lblBacklog = new System.Windows.Forms.Label();
       this.flowLayoutPanel1.SuspendLayout();
       this.SuspendLayout();
       // 
@@ -70,11 +71,12 @@
       this.flowLayoutPanel1.Controls.Add(this.button5);
       this.flowLayoutPanel1.Controls.Add(this.button6);
       this.flowLayoutPanel1.Controls.Add(this.lblDrops);
+      this.flowLayoutPanel1.Controls.Add(this.lblBacklog);
       this.flowLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
       this.flowLayoutPanel1.Location = new System.Drawing.Point(0, 0);
       this.flowLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
       this.flowLayoutPanel1.Name = "flowLayoutPanel1";
-      this.flowLayoutPanel1.Size = new System.Drawing.Size(581, 22);
+      this.flowLayoutPanel1.Size = new System.Drawing.Size(680, 22);
       this.flowLayoutPanel1.TabIndex = 2;
       this.flowLayoutPanel1.WrapContents = false;
       // 
@@ -214,6 +216,19 @@
       this.lblDrops.Text = "Drops: 0";
       this.lblDrops.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
       // 
+      // lblBacklog
+      // 
+      this.lblBacklog.AutoSize = true;
+      this.lblBacklog.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+      this.lblBacklog.Font = new System.Drawing.Font("Consolas", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      this.lblBacklog.Location = new System.Drawing.Point(557, 3);
+      this.lblBacklog.Margin = new System.Windows.Forms.Padding(3);
+      this.lblBacklog.Name = "lblBacklog";
+      this.lblBacklog.Size = new System.Drawing.Size(67, 13);
+      this.lblBacklog.TabIndex = 12;
+      this.lblBacklog.Text = "Backlog: 0";
+      this.lblBacklog.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+      // 
       // InfobarCapture
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -222,7 +237,7 @@
       this.BackColor = System.Drawing.Color.Transparent;
       this.Controls.Add(this.flowLayoutPanel1);
       this.Name = "InfobarCapture";
-      this.Size = new System.Drawing.Size(581, 22);
+      this.Size = new System.Drawing.Size(680, 22);
       this.flowLayoutPanel1.ResumeLayout(false);
       this.flowLayoutPanel1.PerformLayout();
       this.ResumeLayout(false);
@@ -243,5 +258,6 @@
         private System.Windows.Forms.Button button5;
         private System.Windows.Forms.Button button6;
         private System.Windows.Forms.Label lblDrops;
+        private System.Windows.Forms.Label lblBacklog;
     }
 }

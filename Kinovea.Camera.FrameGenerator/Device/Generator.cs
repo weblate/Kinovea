@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using Kinovea.Pipeline;
 using Kinovea.Services;
 using Kinovea.Services.TurboJpeg;
+using System.Diagnostics;
 
 namespace Kinovea.Camera.FrameGenerator
 {
@@ -27,7 +28,6 @@ namespace Kinovea.Camera.FrameGenerator
         private int position;               // Absolute position.
         private int capacity = 8;
         private Point timestampLocation = new Point(10, 10);
-        private SolidBrush backBrush = new SolidBrush(Color.DarkGray);
         private SolidBrush foreBrush = new SolidBrush(Color.White);
         private Font font;
         private bool allocated;
@@ -69,6 +69,7 @@ namespace Kinovea.Camera.FrameGenerator
             if (!allocated)
                 return null;
 
+            Stopwatch stopwatch = Stopwatch.StartNew();
             Frame entry = frames[position % capacity];
 
             if (configuration.ImageFormat == Kinovea.Services.ImageFormat.RGB24)
@@ -78,6 +79,7 @@ namespace Kinovea.Camera.FrameGenerator
             }
 
             position++;
+            //log.DebugFormat("Generated frame {0} in {1:0.000} ms.", position, stopwatch.Elapsed.TotalMilliseconds);
 
             return entry;
         }
@@ -167,7 +169,7 @@ namespace Kinovea.Camera.FrameGenerator
         {
             using (Graphics g = Graphics.FromImage(bmpTimestamp))
             {
-                g.FillRectangle(backBrush, 0, 0, bmpTimestamp.Width, bmpTimestamp.Height);
+                g.Clear(Color.Black);
                 g.DrawString(text, font, foreBrush, Point.Empty);
             }
 

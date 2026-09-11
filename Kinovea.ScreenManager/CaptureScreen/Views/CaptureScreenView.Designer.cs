@@ -190,12 +190,12 @@ namespace Kinovea.ScreenManager
       // sldrDelay
       // 
       this.sldrDelay.Cursor = System.Windows.Forms.Cursors.Hand;
+      this.sldrDelay.IsSticky = false;
       this.sldrDelay.Location = new System.Drawing.Point(322, 18);
       this.sldrDelay.Maximum = 100D;
       this.sldrDelay.Minimum = 0D;
       this.sldrDelay.Name = "sldrDelay";
       this.sldrDelay.Size = new System.Drawing.Size(153, 23);
-      this.sldrDelay.IsSticky = false;
       this.sldrDelay.TabIndex = 43;
       this.sldrDelay.Text = "sliderLinear1";
       this.sldrDelay.Value = 0D;
@@ -425,7 +425,7 @@ namespace Kinovea.ScreenManager
       this.infobarCapture.BackColor = System.Drawing.Color.Transparent;
       this.infobarCapture.Location = new System.Drawing.Point(125, 2);
       this.infobarCapture.Name = "infobarCapture";
-      this.infobarCapture.Size = new System.Drawing.Size(579, 22);
+      this.infobarCapture.Size = new System.Drawing.Size(644, 22);
       this.infobarCapture.TabIndex = 0;
       this.infobarCapture.Visible = false;
       // 

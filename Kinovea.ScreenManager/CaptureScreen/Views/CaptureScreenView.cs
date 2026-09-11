@@ -182,10 +182,10 @@ namespace Kinovea.ScreenManager
             infobarCapture.Left = lblCameraTitle.Right + 5;
         }
         
-        public void UpdateInfo(string signal, string bandwidth, string load, string drops)
+        public void UpdateInfo(string signal, string bandwidth, string load, string drops, string backlog)
         {
             infobarCapture.Visible = true;
-            infobarCapture.UpdateValues(signal, bandwidth, load, drops);
+            infobarCapture.UpdateValues(signal, bandwidth, load, drops, backlog);
         }
 
         /// <summary>
@@ -287,7 +287,7 @@ namespace Kinovea.ScreenManager
             memoContext = newContext;
         }
 
-        public void UpdateLoadStatus(float load)
+        public void UpdateLoadStatus(double load)
         {
             if (load < 85)
                 infobarCapture.UpdateLoadStatus(LoadStatus.OK);

@@ -1199,30 +1199,36 @@ namespace Kinovea.ScreenManager
                 return;
 
             // Compute load (processing time vs frame budget).
-            long elapsed = 0;
+            double frameProcessingDuration = 0;
+            int backlogValue = 0;
             if (recordingMode == CaptureRecordingMode.Camera)
             {
                 // Here we don't report load if not recording as it's non-blocking.
                 if (recording && consumerRealtime != null)
-                    elapsed = consumerRealtime.Elapsed;
+                {
+                    frameProcessingDuration = consumerRealtime.Elapsed;
+                }
             }
-            else if ((recordingMode == CaptureRecordingMode.Delay || recordingMode == CaptureRecordingMode.Scheduled) && consumerDelayer != null)
+            else if (consumerDelayer != null)
             {
-                elapsed = consumerDelayer.Elapsed;
+                frameProcessingDuration = consumerDelayer.FrameProcessingDuration;
+                backlogValue = consumerDelayer.RecorderBacklog;
             }
 
-            float load = (elapsed / (1000.0f / (float)pipelineManager.Frequency)) * 100;
-             
+            double frameBudget = 1000.0 / pipelineManager.Frequency;
+            double loadValue = (frameProcessingDuration / frameBudget) * 100.0;
+            long dropsValue = pipelineManager.Drops;
+
             string signal = string.Format(" {0:0.00} fps", pipelineManager.Frequency);
             string bandwidth = string.Format(" {0:0.00} MB/s", cameraGrabber.LiveDataRate);
-            bandwidth = bandwidth.PadLeft(12);
-            string strLoad = string.Format(" {0:0} %", load);
-            strLoad = strLoad.PadLeft(6);
-
-            string drops = string.Format(" {0}", pipelineManager.Drops);
+            bandwidth.PadLeft(12);
+            string drops = string.Format(" {0}", dropsValue);
+            string load = string.Format(" {0:0.00} %", loadValue);
+            load.PadLeft(6);
+            string backlog = string.Format(" {0}", backlogValue);
             
-            view.UpdateInfo(signal, bandwidth, strLoad, drops);
-            view.UpdateLoadStatus(load);
+            view.UpdateInfo(signal, bandwidth, load, drops, backlog);
+            view.UpdateLoadStatus(loadValue);
         }
 
         private void ChangeAspectRatio(ImageAspectRatio aspectRatio)
@@ -1735,8 +1741,10 @@ namespace Kinovea.ScreenManager
                     break;
                 case CaptureRecordingMode.Delay:
                 case CaptureRecordingMode.Scheduled:
-                    if (consumerDelayer != null && consumerDelayer.Active && consumerDelayer.Recording)
+                    if (consumerDelayer != null && consumerDelayer.Active)
+                    {
                         consumerDelayer.StopRecord();
+                    }
                     break;
             }
 
@@ -1834,7 +1842,7 @@ namespace Kinovea.ScreenManager
                 }
                 else //(recordingMode == CaptureRecordingMode.Delay)
                 {
-                    if (consumerDelayer == null || (consumerDelayer != null && !consumerDelayer.Recording))
+                    if (consumerDelayer == null)
                         return;
 
                     pipelineManager.StopRecord();

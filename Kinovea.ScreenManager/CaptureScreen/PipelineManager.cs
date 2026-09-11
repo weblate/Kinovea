@@ -17,25 +17,51 @@ namespace Kinovea.ScreenManager
     {
         public event EventHandler FrameSignaled;
 
+        #region Properties
         /// <summary>
-        /// Drops are when the producer cannot push a frame to the small ring buffer,
-        /// meaning the consumer is still working on the oldest frame.
+        /// Drops registered during the last recording session.
+        /// These are production drops, the producer could not push a frame to the 
+        /// small ring buffer because a consumer was still working on the oldest frame.
+        /// These should be very rare now that the recording itself runs in its own thread.
         /// </summary>
         public long Drops
         {
-            get { return pipeline == null ? 0 : pipeline.Drops; }
+            get 
+            {
+                if (pipeline == null)
+                {
+                    return 0;
+                }
+                else if (isRecording)
+                {
+                    return pipeline.Drops - recordingDropBaseline;
+                }
+                else
+                {
+                    return lastRecordingDropCount;
+                }
+            }
         }
 
+        /// <summary>
+        /// Measured frame rate produced by the camera.
+        /// Exponential average over a window of 24 frames.
+        /// </summary>
         public double Frequency
         {
-            get { return pipeline == null ? 0 : pipeline.Frequency; }
+            get 
+            { 
+                return pipeline == null ? 0 : pipeline.Frequency; 
+            }
         }
 
         public string Path
         {
             get { return filepath; }
         }
+        #endregion
 
+        #region Members
         private bool connected;
         private FramePipeline pipeline;
         private IFrameProducer producer;
@@ -43,6 +69,12 @@ namespace Kinovea.ScreenManager
         private ConsumerDelayer consumerDelayer;
         private List<IFrameConsumer> consumers = new List<IFrameConsumer>();
         private string filepath;
+        private long recordingDropBaseline; // drop count at the start of the recording.
+        private long lastRecordingDropCount; // drop count at the end of the recording.
+        private bool isRecording = false;
+
+        #endregion
+
         public void Connect(ImageDescriptor imageDescriptor, IFrameProducer producer, ConsumerDisplay consumerDisplay, ConsumerRealtime consumerRealtime)
         {
             // At that point the consumer threads are already started.
@@ -116,7 +148,12 @@ namespace Kinovea.ScreenManager
             if (consumerRealtime == null && consumerDelayer == null)
                 throw new InvalidProgramException();
 
-            pipeline.ResetDrops();
+            // Remember the baseline drop count at the start of the recording.
+            // This is used to compute the number of drops during the recording.
+            recordingDropBaseline = pipeline.Drops;
+            lastRecordingDropCount = 0;
+            isRecording = true;
+
             RecordingResult result;
             if (consumerRealtime != null)
             {
@@ -126,7 +163,7 @@ namespace Kinovea.ScreenManager
             }
             else
             {
-                result = consumerDelayer.StartRecord(filepath, interval, age, rotation);
+                result = consumerDelayer.StartRecord(filepath, interval, rotation, age);
             }
 
             return result;
@@ -145,6 +182,9 @@ namespace Kinovea.ScreenManager
             {
                 consumerDelayer.StopRecord();
             }
+
+            lastRecordingDropCount = pipeline.Drops - recordingDropBaseline;
+            isRecording = false;
         }
 
         private void producer_FrameProduced(object sender, FrameProducedEventArgs e)

@@ -7,6 +7,9 @@ using System.Diagnostics;
 using Kinovea.Video;
 using Kinovea.Video.FFMpeg;
 using Kinovea.Services;
+using System.Collections.Generic;
+using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace Kinovea.ScreenManager
 {
@@ -17,30 +20,70 @@ namespace Kinovea.ScreenManager
     /// </summary>
     public class ConsumerDelayer : AbstractConsumer
     {
-        public bool Recording
-        {
-            get { return recording; }
+
+        #region Properties
+
+        /// <summary>
+        /// Duration of the last frame processing in milliseconds.
+        /// </summary>
+        public double FrameProcessingDuration 
+        { 
+            get 
+            {
+                return Volatile.Read(ref publishedProcessingAverage);
+            }
         }
 
-        public long Elapsed { get; private set; }
+        /// <summary>
+        /// Number of frames waiting to be recorded.
+        /// </summary>
+        public int RecorderBacklog
+        {
+            get
+            {
+                return Volatile.Read(ref recorderBacklog);
+            }
+        }
+        #endregion
 
+        #region Members
+        private string shortId; // thread name for logging.
         private bool allocated;
         private Delayer delayer;
-        private int age;
         private ImageDescriptor delayerImageDescriptor;
-        private Frame delayedFrame;
-        private MJPEGWriter writer;
-        private bool recording;
-        private bool stopRecordAsked;
-        private string shortId;
-        private Stopwatch stopwatch = new Stopwatch();
-        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
+        // Computing the time spent.
+        private Stopwatch stopwatchFrameProcessing = new Stopwatch();
+        private const int processingAverageSpan = 24;
+        private const double processingAlpha = 2.0 / (processingAverageSpan + 1.0);
+        private bool hasProcessingAverage;
+        private double processingAverage;
+        private int countedFrames = 0;
+        private double publishedProcessingAverage;
+
+        // Recording support.
+        // The following variables should only be accessed from inside the recordingSync lock,
+        // or when the recording thread is dead.
+        private Thread recordingThread;
+        private readonly object recordingSync = new object();
+        private readonly Queue<long> framesToRecord = new Queue<long>(); // list of ids of frames to record.
+        private Frame delayedFrame; // reusable frame sent to the encoder/writer.
+        private bool acceptRecordingFrames;
+        private bool stopRecordingRequested;
+        private int age;
+        private MJPEGWriter writer;
+        private int recorderBacklog;
+
+        // Debugging
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        #endregion
+
+        #region Construction
         public ConsumerDelayer(string shortId)
         {
             this.shortId = shortId;
-            stopwatch.Start();
         }
+        #endregion
 
         /// <summary>
         /// Set the image descriptor for the incoming frames.
@@ -72,13 +115,15 @@ namespace Kinovea.ScreenManager
             }
         }
 
-
         public void PrepareDelay(Delayer delayer)
         {
             this.delayer = delayer;
         }
 
-        public RecordingResult StartRecord(string filename, double interval, int age, ImageRotation rotation)
+
+
+        #region Recording
+        public RecordingResult StartRecord(string filename, double interval, ImageRotation rotation, int age)
         {
             //-----------------------
             // Runs on the UI thread.
@@ -87,8 +132,35 @@ namespace Kinovea.ScreenManager
             if (delayerImageDescriptor == null)
                 throw new NotSupportedException("ImageDescriptor must be set before prepare.");
 
-            this.age = age;
+            RecordingResult result = ConfigureEncoder(filename, interval, rotation);
+            if (result != RecordingResult.Success)
+                return result;
 
+            lock (recordingSync)
+            {
+                // TODO: check if the thread is already active.
+
+                // The delay stays the same throughout the recording.
+                this.age = age;
+                framesToRecord.Clear();
+                Volatile.Write(ref recorderBacklog, 0);
+                acceptRecordingFrames = true;
+                stopRecordingRequested = false;
+
+                recordingThread = new Thread(RecordingLoop)
+                {
+                    IsBackground = true,
+                    Name = "Camera recording"
+                };
+
+                recordingThread.Start();
+            }
+
+            return result;
+        }
+
+        private RecordingResult ConfigureEncoder(string filename, double interval, ImageRotation rotation)
+        {
             if (writer != null)
                 writer.Dispose();
 
@@ -113,19 +185,124 @@ namespace Kinovea.ScreenManager
 
             RecordingResult result = writer.OpenSavingContext(settings);
 
-            recording = true;
-
             return result;
         }
 
+
+        /// <summary>
+        /// Stop the recording.
+        /// Can be called from any thread.
+        /// Can be called even if we are not currently recording.
+        /// </summary>
         public void StopRecord()
         {
-            //-----------------------
-            // Runs on the UI thread.
-            //-----------------------
-            stopRecordAsked = true;
+            // Any thread can request a stop.
+            // Only the recording thread flushes and closes the encoder/writer.
+
+            Thread thread;
+
+            lock (recordingSync)
+            {
+                acceptRecordingFrames = false;
+                stopRecordingRequested = true;
+                thread = recordingThread;
+
+                Monitor.PulseAll(recordingSync);
+            }
+
+            if (thread != null && thread != Thread.CurrentThread)
+            {
+                thread.Join();
+            }
         }
 
+        private void RecordingLoop()
+        {
+            //-----------------------
+            // Recording thread main loop.
+            //-----------------------
+
+            try
+            {
+                while (true)
+                {
+                    long frameId;
+
+                    lock (recordingSync)
+                    {
+                        while (framesToRecord.Count == 0 && !stopRecordingRequested)
+                        {
+                            Monitor.Wait(recordingSync);
+
+                            if (stopRecordingRequested)
+                            {
+                                log.DebugFormat("Stop recording requested: still in queue: {0}", framesToRecord.Count);
+                            }
+                        }
+
+                        // When recording stops we flush the remaining frames in the queue.
+                        // So we only truly stop when the queue is empty.
+                        if (framesToRecord.Count == 0 && stopRecordingRequested)
+                        {
+                            break;
+                        }
+
+                        frameId = framesToRecord.Dequeue();
+                        Volatile.Write(ref recorderBacklog, framesToRecord.Count);
+                    }
+
+                    bool copied = delayer.GetStrong(frameId, delayedFrame);
+                    if (copied)
+                    {
+                        writer.SaveFrame(
+                            delayerImageDescriptor.Format, 
+                            delayedFrame.Buffer, 
+                            delayedFrame.PayloadLength, 
+                            delayerImageDescriptor.TopDown);
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    CloseWriter();
+                }
+                catch
+                {
+
+                }
+
+                lock (recordingSync)
+                {
+                    acceptRecordingFrames = false;
+                    stopRecordingRequested = true;
+                    framesToRecord.Clear();
+                    Volatile.Write(ref recorderBacklog, 0);
+                    recordingThread = null;
+                    Monitor.PulseAll(recordingSync);
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Close the writer and release its resources.
+        /// Should only be called from the recorder thread.
+        /// </summary>
+        private void CloseWriter()
+        {
+            if (writer != null)
+            {
+                writer.CloseSavingContext(true);
+                writer.Dispose();
+                writer = null;
+            }
+        }
+        #endregion
+
+
+        #region Trigger
         /// <summary>
         /// Mark the frame at `age` ago as the trigger.
         /// </summary>
@@ -143,77 +320,91 @@ namespace Kinovea.ScreenManager
             return delayer.GetTriggerAge();
         }
 
+        #endregion
+
         protected override void AfterDeactivate()
         {
-            if (recording)
-                DoStopRecord();
-
+            StopRecord();
             base.AfterDeactivate();
         }
 
         protected override void ProcessEntry(long frameId, Frame entry)
         {
-            // FIXME: this should not do the recording itself.
-            // This should just copy-push the frame to the delay buffer and return.
+            //-------------------------------------------    
+            // Process the incoming frame.
+            //
+            // This must be fast.
             // The producer has a small 8-frame buffer that must not be blocked by the consumer.
-            // It's possible for the producer to accumulate a few frames while we are busy here, 
-            // and we'll get called back for all the produced frames, but we shouldn't block to 
-            // the point of bloating the 8 slots.
-            // The frames are pushed into the much larger delay buffer anyway, and that's where the recording 
-            // takes frames from, so even if encoding isn't in real time, as long as the frames are still
+            // It's ok for it to publish a few frames while we are busy here, we'll get called back
+            // for all the produced frames, but we shouldn't block to the point of bloating the 8 slots.
+            //
+            // This function pushes the frame into the larger delay buffer, and that's where the display
+            // and recording threads will get their frames from.
+            // So even if encoding isn't in real time, as long as the frames are still
             // somewhere in the delay buffer we should be able to grab them.
+            //-------------------------------------------
 
             if (!allocated)
                 return;
 
-            long then = stopwatch.ElapsedMilliseconds;
+            stopwatchFrameProcessing.Restart();
 
-            // Push the frame to the delay buffer and write the frame id into it.
+            // Push the frame to the delay buffer.
+            // This writes the id into the frame.
             bool pushed = delayer.Push(entry, frameId);
             if (!pushed)
             {
-                // Very critical error. Most likely cross thread access to the same frame.
+                // Critical error. Most likely cross thread access to the same frame.
                 // Let's deactivate to avoid looping on the error.
                 log.ErrorFormat("Critical error while trying to push frame to delayer.");
-                DoStopRecord();
+                StopRecord();
                 Deactivate();
+                return;
             }
-
-            if (stopRecordAsked)
+            
+            // If we are recording, push the id of the delayed frame to record into the queue
+            // and pulse the recording thread to wake up and process it.
+            lock (recordingSync)
             {
-                DoStopRecord();
-            }
-            else if (recording)
-            {
-                // Extract a bitmap from delayer at right delay and convert it into a frame for the writer.
-                // FIXME:
-                // Add the target frame to a list of frames to be written, and return immediately.
-                long target = frameId - age;
-                bool copied = delayer.GetStrong(target, delayedFrame);
-                if (copied)
+                if (!acceptRecordingFrames)
                 {
-                    writer.SaveFrame(delayerImageDescriptor.Format, delayedFrame.Buffer, delayedFrame.PayloadLength, delayerImageDescriptor.TopDown);
+                    PublishFrameProcessingDuration();
+                    return;
                 }
+
+                long target = frameId - age;
+                framesToRecord.Enqueue(target);
+                Volatile.Write(ref recorderBacklog, framesToRecord.Count);
+
+                Monitor.Pulse(recordingSync);
             }
 
-            Elapsed = stopwatch.ElapsedMilliseconds - then;
+            PublishFrameProcessingDuration();
         }
 
-        private void DoStopRecord()
+        /// <summary>
+        /// Publish frame processing duration for load estimation.
+        /// </summary>
+        private void PublishFrameProcessingDuration()
         {
-            //---------------------------------------
-            // Must be called on the consumer thread.
-            //---------------------------------------
-            stopRecordAsked = false;
+            stopwatchFrameProcessing.Stop();
+            double duration = stopwatchFrameProcessing.Elapsed.TotalMilliseconds;
+            if (!hasProcessingAverage)
+            {
+                processingAverage = duration;
+                hasProcessingAverage = true;
+            }
+            else
+            {
+                processingAverage = (processingAlpha * duration) + ((1.0 - processingAlpha) * processingAverage);
+            }
 
-            if (!recording)
-                return;
-
-            writer.CloseSavingContext(true);
-            writer.Dispose();
-            writer = null;
-
-            recording = false;
+            countedFrames++;
+            if (countedFrames % processingAverageSpan == 0)
+            {
+                //log.DebugFormat("stopwatch frame processing: {0}", duration);
+                Volatile.Write(ref publishedProcessingAverage, processingAverage);
+            }
         }
     }
 }

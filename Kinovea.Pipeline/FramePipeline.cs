@@ -17,36 +17,52 @@ namespace Kinovea.Pipeline
     /// </summary>
     public class FramePipeline
     {
-        public int FrameLength
-        {
-            get { return frameLength; }
-        }
+        #region Properties
 
-        public long Drops
-        {
-            get { return drops; }
-        }
-
+        /// <summary>
+        /// The ring buffer is allocated.
+        /// </summary>
         public bool Allocated
         {
             get { return ringBuffer.Allocated; }
         }
 
-        public double Frequency
+        /// <summary>
+        /// Total number of frame drops since the pipeline started.
+        /// A frame drop occurs when the producer wants to write a frame to the ring buffer
+        /// but at least one consumer is still processing the frame at that slot.
+        /// </summary>
+        public long Drops
         {
-            // Note: this variable is written by the stream thread and read by the UI thread.
-            // We don't lock because freshness of values is not paramount and torn reads are not catastrophic either.
-            // We eventually get an approximate value good enough for the purpose.
             get 
-            {
-                return frequencyCounter.Frequency;
+            { 
+                return Interlocked.Read(ref drops); 
             }
         }
 
+        /// <summary>
+        /// Measured frame rate produced by camera.
+        /// Exponential average over a window of 24 frames.
+        /// </summary>
+        public double Frequency
+        {
+            get 
+            {
+                return Volatile.Read(ref frequency);
+            }
+        }
+        #endregion
+
+        #region Members
         private IFrameProducer producer;
         private List<IFrameConsumer> consumers;
         private RingBuffer ringBuffer;
-        private int frameLength;
+        
+        private FrequencyCounter frequencyCounter = new FrequencyCounter(24, 48, true);
+        private double frequency;
+
+        private long drops;
+        private long frameCount;
 
         // Note: the benchmark counters are always filled.
         // The benchmark mode determines the code path taken.
@@ -54,15 +70,10 @@ namespace Kinovea.Pipeline
         //private Dictionary<string, BenchmarkCounterIntervals> counters = new Dictionary<string, BenchmarkCounterIntervals>();
         //private BenchmarkCounterIntervals heartbeat = new BenchmarkCounterIntervals();
         //private BenchmarkCounterIntervals commitbeat = new BenchmarkCounterIntervals();
-        private FrequencyCounter frequencyCounter = new FrequencyCounter(24, 48, true);
-
-        // Note: we lock drops on write as it's written from UI thread and producer thread.
-        // The freshness of the value is not paramount so we do not lock on read to avoid slowing down the producer thread.
-        private int drops;
-        private object lockerDrops = new object();
-
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-        
+        #endregion
+
+
         public FramePipeline(IFrameProducer producer, List<IFrameConsumer> consumers, int buffers, int bufferSize)
         {
             log.DebugFormat("Starting frame pipeline.");
@@ -76,7 +87,6 @@ namespace Kinovea.Pipeline
 
             if (ringBuffer.Allocated)
             {
-                frameLength = bufferSize;
                 log.DebugFormat("Ring buffer allocated.");
 
                 Bind();
@@ -84,16 +94,9 @@ namespace Kinovea.Pipeline
             }
         }
 
-        public void ResetDrops()
-        {
-            lock (lockerDrops)
-                drops = 0;
-        }
-
         public void Teardown()
         {
             Unbind();
-            frameLength = 0;
             ringBuffer.Teardown();
 
             log.DebugFormat("Ring buffer torn down.");
@@ -139,28 +142,26 @@ namespace Kinovea.Pipeline
             //-------------------------
 
             //heartbeat.Tick();
-            
+            frameCount++;
             //if (benchmarkMode == BenchmarkMode.Heartbeat)
-              //return;
+            //return;
 
+            // Compute and publish the camera frame frequency.
+            // This value is the "measured" value, it's often different from 
+            // the configured value in the camera settings.
             frequencyCounter.Tick();
+            Volatile.Write(ref frequency, frequencyCounter.Frequency);
 
             // Claim the next slot in the ring buffer.
             Frame entry;
-            bool claimed = true;
-            /*if (benchmarkMode == BenchmarkMode.Bradycardia)
-                ringBuffer.Claim(out entry);
-            else*/
-            
-            claimed = ringBuffer.TryClaim(out entry);
-
+            bool claimed = ringBuffer.TryClaim(out entry);
             if (!claimed)
             {
-                // At least one consumer is still reading the slot we would like to write to.
-                lock (lockerDrops)
-                {
-                    drops++;
-                }
+                // At least one consumer is still processing the frame at the slot
+                // we would like to write to. (= buffer overflow).
+                // Register a frame drop. We'll never get that frame back.
+                Interlocked.Increment(ref drops);
+                log.DebugFormat("Frame drop at {0}", frameCount);
             }
             else
             {
