@@ -168,11 +168,8 @@ namespace Kinovea.ScreenManager
 
             long then = stopwatch.ElapsedMilliseconds;
 
-            // We don't move back this call to the UI thread.
-            // During recording we extract frames from the delayer on that very same thread, 
-            // and for the display it's not critical that the images be broken. (less critical than switching context each frame).
-            // As this mode is tailored for delay scenario, in all likelihood the display is not going to be reading the frame we are writing to.
-            bool pushed = delayer.Push(entry);
+            // Push the frame to the delay buffer and write the frame id into it.
+            bool pushed = delayer.Push(entry, frameId);
             if (!pushed)
             {
                 // Very critical error. Most likely cross thread access to the same frame.
@@ -188,11 +185,11 @@ namespace Kinovea.ScreenManager
             }
             else if (recording)
             {
+                // Extract a bitmap from delayer at right delay and convert it into a frame for the writer.
                 // FIXME:
                 // Add the target frame to a list of frames to be written, and return immediately.
-
-                // Extract a bitmap from delayer at right delay and convert it into a frame for the writer.
-                bool copied = delayer.GetStrong(age, delayedFrame);
+                long target = frameId - age;
+                bool copied = delayer.GetStrong(target, delayedFrame);
                 if (copied)
                 {
                     writer.SaveFrame(delayerImageDescriptor.Format, delayedFrame.Buffer, delayedFrame.PayloadLength, delayerImageDescriptor.TopDown);

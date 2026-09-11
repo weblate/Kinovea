@@ -27,7 +27,7 @@ namespace Kinovea.ScreenManager
         {
             get { return fullCapacity; }
         }
-        public int CurrentPosition
+        public long CurrentPosition
         {
             get { return currentPosition; }
         }
@@ -37,10 +37,10 @@ namespace Kinovea.ScreenManager
         private List<Frame> frames = new List<Frame>();
         private Rectangle rect;
         private int minCapacity = 12;
-        private int reserveCapacity = 8;    // Number of frames kept unreachable to clients.
+        private int reserveCapacity = 8;    // Number of frames kept unreachable to consumers.
         private int fullCapacity = 12;      // Total number of frames kept.
-        private int currentPosition = -1;   // Freshest absolute position written to and available to consumers.
-        private int triggerPosition = -1;
+        private long currentPosition = -1;   // Freshest absolute position written to and available to consumers.
+        private long triggerPosition = -1;
         private bool allocated;
         private long availableMemory;
         private ImageDescriptor imageDescriptor;
@@ -52,7 +52,7 @@ namespace Kinovea.ScreenManager
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         #endregion
 
-        #region Public methods
+        #region Allocation/Deallocation
         /// <summary>
         /// Attempt to preallocate the circular buffer for as many images as possible that fits in available memory.
         /// </summary>
@@ -140,10 +140,59 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
+        /// Free the circular buffer and reset state.
+        /// </summary>
+        public void FreeAll()
+        {
+            stopwatch.Restart();
+
+            if (fullCapacity == 0 && !allocated)
+                return;
+
+            log.DebugFormat("Freeing {0} frames.", fullCapacity);
+
+            frames.Clear();
+            GC.Collect(2);
+
+            ResetData();
+
+            log.DebugFormat("Freed delay buffer: {0} ms. Total: {1} frames.", stopwatch.ElapsedMilliseconds, frames.Count);
+        }
+
+        private void FreeSome(int targetCapacity)
+        {
+            stopwatch.Restart();
+
+            log.DebugFormat("Freeing {0} frames.", fullCapacity - targetCapacity);
+
+            for (int i = frames.Count - 1; i >= targetCapacity; i--)
+            {
+                frames.RemoveAt(i);
+            }
+
+            GC.Collect(2);
+
+            log.DebugFormat("Freed delay buffer: {0} ms. Total: {1} frames.", stopwatch.ElapsedMilliseconds, frames.Count);
+        }
+
+        private void ResetData()
+        {
+            allocated = false;
+            fullCapacity = 0;
+            rect = Rectangle.Empty;
+            imageDescriptor = ImageDescriptor.Invalid;
+            availableMemory = 0;
+            currentPosition = -1;
+        }
+        #endregion
+
+
+        #region Frame Access
+        /// <summary>
         /// Push a single frame to the buffer.
         /// Copies the content into a pre-allocated slot.
         /// </summary>
-        public bool Push(Frame src)
+        public bool Push(Frame src, long frameId = 0)
         {
             //-----------------------------------------
             // Runs in UI thread in mode Camera.
@@ -152,14 +201,19 @@ namespace Kinovea.ScreenManager
             if (!allocated)
                 return false;
 
-            int nextPosition = currentPosition + 1;
-            int index = nextPosition % fullCapacity;
+            int index = (int)(frameId % fullCapacity);
             bool pushed = false;
 
             try
             {
                 frames[index].Import(src);
+                frames[index].FrameId = frameId;
                 pushed = true;
+                
+                //if (frameId % 10 == 0)
+                //{
+                //    log.DebugFormat("Pushed frame {0} to delay buffer.", frameId);
+                //}
             }
             catch
             {
@@ -168,28 +222,32 @@ namespace Kinovea.ScreenManager
 
             // Lock on write just to avoid a torn read in Get().
             lock (lockerPosition)
-                currentPosition = nextPosition;
+            {
+                currentPosition = frameId;
+            }
 
             return pushed;
         }
 
         /// <summary>
-        /// Get the frame from `age` frames ago, wait for it if necessary, copy it into the passed buffer.
+        /// Get the frame from `age` frames ago, relatively to the last pushed frame.
+        /// Wait for it if necessary. 
+        /// Copy it into the passed buffer.
         /// </summary>
-        public bool GetStrong(int age, Frame dst)
+        public bool GetStrongByAge(int age, Frame dst)
         {
             //-----------------------------------------------
             // Runs in the consumer thread, during recording.
             //-----------------------------------------------
-            Frame frame = Get(age, out _);
+            Frame frame = GetByAge(age, out _);
             if (frame == null)
             {
                 return false;
             }
 
-            // The UI thread and the recording thread can ask the same image at the same time.
-            // Here we have a strong need to get the image out, so in the event the UI has 
-            // taken the lock on the image, we wait for it.
+            // The UI thread and the recording thread can ask the same frame at the same time.
+            // Here we have a strong need to get the frame out, so in the event the UI has 
+            // taken the lock on the frame, we wait for it.
             lock (lockerFrame)
             {
                 dst.Import(frame);
@@ -199,11 +257,34 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Get the frame from `age` frames ago as an RGB24 Bitmap, correctly oriented. Do not wait for it and returns null if it's not available. 
-        /// The out target parameter provides the actual frame position we got, or a negative number if we are not ready yet. This can be used
-        /// to implement a waiting image.
+        /// Get the frame at the passed id.
+        /// Wait for it if necessary.
+        /// Copy it into the passed buffer.
         /// </summary>
-        public Bitmap GetWeak(int age, ImageRotation rotation, bool mirror, out int target)
+        public bool GetStrong(long id, Frame dst)
+        {
+            Frame frame = Get(id);
+            if (frame == null)
+            {
+                return false;
+            }
+
+            lock (lockerFrame)
+            {
+                dst.Import(frame);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Get the frame from `age` frames ago, relative to last pushed, for display.
+        /// This returns an RGB24 Bitmap, correctly rotated. 
+        /// It does not wait for the frame, returns null if it's not available. 
+        /// The out target parameter provides the actual frame position we got, 
+        /// or a negative number if we are not ready yet, this can be used to make a waiting image.
+        /// </summary>
+        public Bitmap GetWeakByAge(int age, ImageRotation rotation, bool mirror, out long target)
         {
             //----------------------------------------------------
             // Runs in the UI thread, to get the image to display.
@@ -218,7 +299,7 @@ namespace Kinovea.ScreenManager
             {
                 try
                 {
-                    Frame frame = Get(age, out target);
+                    Frame frame = GetByAge(age, out target);
                     if (frame == null)
                         return null;
 
@@ -282,9 +363,12 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Retrieve a frame from "age" frames ago. Returns the original image or null.
+        /// Retrieve a frame from "age" frames ago, relative to last pushed. 
+        /// If it's not yet in the buffer returns null.
+        /// If it's no longer in the buffer, returns the oldest frame.
+        /// Returns the original image or null.
         /// </summary>
-        private Frame Get(int age, out int target)
+        private Frame GetByAge(int age, out long target)
         {
             //----------------------------------------------------------
             // Runs in UI thread in mode Camera for display (through compositor).
@@ -297,7 +381,7 @@ namespace Kinovea.ScreenManager
                 return null;
             }
 
-            int newestAvailablePosition = 0;
+            long newestAvailablePosition = 0;
 
             // We only lock on reading to avoid a torn read if the other thread is writing to this variable.
             // The mechanism to avoid actually reading the frame we want while the other thread is writing to it 
@@ -323,98 +407,58 @@ namespace Kinovea.ScreenManager
             // we use the reserve capacity to give the writer some room.
             // Both are only doing copies so there should be very little chance that the writer had time to 
             // overwrite more than reserve capacity while the reader is still making one copy.
-            int requestedPosition = newestAvailablePosition - age;
-            int oldestAvailablePosition = newestAvailablePosition - (fullCapacity - 1) + reserveCapacity;
-            int finalPosition = Math.Max(requestedPosition, oldestAvailablePosition);
+            long requestedPosition = newestAvailablePosition - age;
+            long oldestAvailablePosition = newestAvailablePosition - (fullCapacity - 1) + reserveCapacity;
+            long finalPosition = Math.Max(requestedPosition, oldestAvailablePosition);
 
             // We return the actual image, not a copy. The caller is responsible for doing its own copy as fast as possible.
             // If not fast enough, the writer could catch up the reserve capacity and start writing this slot.
-            return frames[finalPosition % fullCapacity];
+            return frames[(int)(finalPosition % fullCapacity)];
         }
 
+
+        /// <summary>
+        /// Get the frame at the passed id.
+        /// If it's not yet in the buffer, returns null.
+        /// If it's no longer in the buffer, returns the oldest frame.
+        /// Returns the actual image, not a copy. The caller is responsible for doing its own copy as fast as possible.
+        /// If not fast enough, the writer could catch up the reserve capacity and start writing this slot.
+        /// </summary>
+        private Frame Get(long id)
+        {
+            if (id < 0 || !allocated || frames.Count == 0)
+            {
+                return null;
+            }
+
+            long oldestAvailablePosition = currentPosition - (fullCapacity - 1) + reserveCapacity;
+            long position = Math.Max(id, oldestAvailablePosition);
+
+            return frames[(int)(position % fullCapacity)];
+        }
+
+        #endregion
+
+
+        #region Trigger
         /// <summary>
         /// Mark the frame at `age` ago as the trigger.
         /// </summary>
         public void MarkTrigger(int age)
         {
             triggerPosition = currentPosition - age;
+            log.DebugFormat("Marking frame {0} as the trigger frame.", triggerPosition);
         }
 
         /// <summary>
         /// Returns the age of the trigger frame.
-        /// The frame is not guaranteed to still be in the buffer.
+        /// The trigger frame is not guaranteed to still be in the buffer.
         /// </summary>
         public int GetTriggerAge()
         {
-            return currentPosition - triggerPosition;
+            return (int)(currentPosition - triggerPosition);
         }
 
-        public void LogPosition(int age)
-        {
-            if (!allocated || frames.Count == 0)
-                return;
-
-            int newestAvailablePosition = 0;
-
-            // We only lock on reading to avoid a torn read if the other thread is writing to this variable.
-            // The mechanism to avoid actually reading the frame we want while the other thread is writing to it 
-            // is the reserve capacity.
-            lock (lockerPosition)
-                newestAvailablePosition = currentPosition;
-
-            if (newestAvailablePosition < 0)
-                return;
-
-            int target = newestAvailablePosition - age;
-            log.DebugFormat("Current position: {0}, position at age: {1}", newestAvailablePosition, target);
-        }
-
-        /// <summary>
-        /// Free the circular buffer and reset state.
-        /// </summary>
-        public void FreeAll()
-        {
-            stopwatch.Restart();
-
-            if (fullCapacity == 0 && !allocated)
-                return;
-
-            log.DebugFormat("Freeing {0} frames.", fullCapacity);
-
-            frames.Clear();
-            GC.Collect(2);
-
-            ResetData();
-
-            log.DebugFormat("Freed delay buffer: {0} ms. Total: {1} frames.", stopwatch.ElapsedMilliseconds, frames.Count);
-        }
-        
-        private void ResetData()
-        {
-            allocated = false;
-            fullCapacity = 0;
-            rect = Rectangle.Empty;
-            imageDescriptor = ImageDescriptor.Invalid;
-            availableMemory = 0;
-            currentPosition = -1;
-        }
-
-        private void FreeSome(int targetCapacity)
-        {
-            stopwatch.Restart();
-
-            log.DebugFormat("Freeing {0} frames.", fullCapacity - targetCapacity);
-
-            for (int i = frames.Count - 1; i >= targetCapacity; i--)
-            {
-                frames.RemoveAt(i);
-            }
-
-            GC.Collect(2);
-
-            log.DebugFormat("Freed delay buffer: {0} ms. Total: {1} frames.", stopwatch.ElapsedMilliseconds, frames.Count);
-        }
         #endregion
-
     }
 }

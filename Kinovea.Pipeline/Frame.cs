@@ -12,7 +12,10 @@ namespace Kinovea.Pipeline
     public class Frame
     {
         public byte[] Buffer { get; private set; }
+        
         public int PayloadLength { get; set; }
+
+        public long FrameId { get; set; }
 
         public Frame(int bufferSize)
         {
@@ -27,6 +30,7 @@ namespace Kinovea.Pipeline
         {
             System.Buffer.BlockCopy(source.Buffer, 0, this.Buffer, 0, source.PayloadLength);
             this.PayloadLength = source.PayloadLength;
+            this.FrameId = source.FrameId;
         }
     }
 }

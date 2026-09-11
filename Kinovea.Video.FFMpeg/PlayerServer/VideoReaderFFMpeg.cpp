@@ -1984,7 +1984,7 @@ ReadResult VideoReaderFFMpeg::ReadFrameSeek(int64_t targetTimestamp, bool doSeek
                 //-------------------------------------------------------
                 result = ConvertAndStoreFrame(frame, false, true);
                 
-                log->DebugFormat("Stored preroll frame [{0}]. Decoded {1} frames.", mDecodedTimestamp, framesDecoded);
+                //log->DebugFormat("Stored preroll frame [{0}]. Decoded {1} frames.", mDecodedTimestamp, framesDecoded);
                 
                 if (mDecodedTimestamp >= targetTimestamp)
                 {

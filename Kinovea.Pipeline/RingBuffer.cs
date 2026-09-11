@@ -89,6 +89,9 @@ namespace Kinovea.Pipeline
             this.benchmarkMode = benchmarkMode;
         }
 
+        /// <summary>
+        /// Returns the frame at the given position, no copy or barrier.
+        /// </summary>
         public Frame GetEntry(long position)
         {
             return slots[(int)(position & remainderMask)];

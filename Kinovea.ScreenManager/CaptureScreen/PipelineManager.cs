@@ -17,6 +17,10 @@ namespace Kinovea.ScreenManager
     {
         public event EventHandler FrameSignaled;
 
+        /// <summary>
+        /// Drops are when the producer cannot push a frame to the small ring buffer,
+        /// meaning the consumer is still working on the oldest frame.
+        /// </summary>
         public long Drops
         {
             get { return pipeline == null ? 0 : pipeline.Drops; }
@@ -145,8 +149,7 @@ namespace Kinovea.ScreenManager
 
         private void producer_FrameProduced(object sender, FrameProducedEventArgs e)
         {
-            if (FrameSignaled != null)
-                FrameSignaled(this, EventArgs.Empty);
+            FrameSignaled?.Invoke(this, EventArgs.Empty);
         }
     }
 }

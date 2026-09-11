@@ -1316,23 +1316,25 @@ namespace Kinovea.ScreenManager
 
             if (!cameraConnected)
                 return;
-            
-            if (recordingMode == CaptureRecordingMode.Camera)
-            {
-                consumerDisplay.ConsumeOne();
-                Frame freshFrame = consumerDisplay.Frame;
-                if (freshFrame == null)
-                    return;
 
-                delayer.Push(freshFrame);
-            }
+            //if (recordingMode == CaptureRecordingMode.Camera)
+            //{
+            //    consumerDisplay.ConsumeOne();
+            //    Frame freshFrame = consumerDisplay.Frame;
+            //    if (freshFrame == null)
+            //        return;
+
+            //    delayer.Push(freshFrame);
+            //}
 
             // Get the displayed frame.
-            int target = 0;
-            Bitmap displayFrame = delayedDisplay ? delayer.GetWeak(delay, ImageRotation, Mirrored, out target) : delayer.GetWeak(0, ImageRotation, Mirrored, out target);
-            
+            long target = 0;
+            Bitmap displayFrame = delayedDisplay ? 
+                delayer.GetWeakByAge(delay, ImageRotation, Mirrored, out target): 
+                delayer.GetWeakByAge(0,     ImageRotation, Mirrored, out target);
+
             if (displayFrame == null && target < 0)
-                displayFrame = CreateWaitImage(-target);
+                displayFrame = CreateWaitImage((int)-target);
             
             if (displayFrame != null)
             {
@@ -1533,7 +1535,7 @@ namespace Kinovea.ScreenManager
             if (!cameraLoaded)
                 return;
 
-            Bitmap bitmap = delayer.GetWeak(delay, ImageRotation, Mirrored, out _);
+            Bitmap bitmap = delayer.GetWeakByAge(delay, ImageRotation, Mirrored, out _);
             if (bitmap == null)
                 return;
 
@@ -2107,16 +2109,18 @@ namespace Kinovea.ScreenManager
             {
                 if (recordingThumbnail == null)
                 {
-                    Bitmap delayed = delayer.GetWeak(age, ImageRotation, Mirrored, out _);
+                    Bitmap delayed = delayer.GetWeakByAge(age, ImageRotation, Mirrored, out _);
                     if (delayed != null)
                     { 
                         recordingThumbnail = BitmapHelper.CopyBasic(delayed);
                     }
                 }
 
-                bool copied = delayer.GetStrong(age, delayedFrame);
+                bool copied = delayer.GetStrongByAge(age, delayedFrame);
                 if (copied)
+                {
                     writer.SaveFrame(imageDescriptor.Format, delayedFrame.Buffer, delayedFrame.PayloadLength, imageDescriptor.TopDown);
+                }
             }
 
             writer.CloseSavingContext(true);
@@ -2267,7 +2271,7 @@ namespace Kinovea.ScreenManager
             // Force a refresh if we are not connected to the camera to enable "pause and browse".
             if (cameraLoaded && !cameraConnected)
             {
-                Bitmap delayed = delayer.GetWeak(delay, ImageRotation, Mirrored, out _);
+                Bitmap delayed = delayer.GetWeakByAge(delay, ImageRotation, Mirrored, out _);
                 viewportController.Bitmap = delayed;
                 viewportController.Refresh();
             }
