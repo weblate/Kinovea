@@ -1218,7 +1218,9 @@ namespace Kinovea.ScreenManager
             bandwidth = bandwidth.PadLeft(12);
             string strLoad = string.Format(" {0:0} %", load);
             strLoad = strLoad.PadLeft(6);
+
             string drops = string.Format(" {0}", pipelineManager.Drops);
+            
             view.UpdateInfo(signal, bandwidth, strLoad, drops);
             view.UpdateLoadStatus(load);
         }

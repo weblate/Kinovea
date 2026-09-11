@@ -81,10 +81,6 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         RecordingResult SaveFrame(ImageFormat format, array<System::Byte>^ buffer, Int64 length, bool topDown);
 
     private:
-        static int GreatestCommonDenominator(int a, int b);
-
-        double ComputeBitrate(Size outputSize, double frameInterval);
-        
         /// Configure the codec with default parameters.
         void SetupEncoder(SavingContext^ _SavingContext, ImageFormat _imageFormat, int quality);
 

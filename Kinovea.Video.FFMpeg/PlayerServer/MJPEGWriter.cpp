@@ -161,6 +161,12 @@ RecordingResult MJPEGWriter::OpenSavingContext(RecordingSettings^ settings)
             break;
         }
 
+        log->DebugFormat(
+            "MJPEG threading: requested count={0}, requested type={1}, active type={2}.",
+            m_SavingContext->pOutputCodecContext->thread_count,
+            m_SavingContext->pOutputCodecContext->thread_type,
+            m_SavingContext->pOutputCodecContext->active_thread_type);
+
         // Associate encoder to stream.
         averror = avcodec_parameters_from_context(pOutputVideoStream->codecpar, m_SavingContext->pOutputCodecContext);
         if (averror < 0) 
@@ -359,24 +365,6 @@ RecordingResult MJPEGWriter::SaveFrame(Kinovea::Services::ImageFormat format, ar
 }
 
 
-double MJPEGWriter::ComputeBitrate(Size outputSize, double frameInterval)
-{
-    // Note that this parameter is not used anyway as we switched to constant quantization.
-    
-    // Compute a bitrate equivalent to DV quality.
-    // DV quality has a bitrate of 25 Mb/s for 720x576 px @ 30fps.
-    // That translates to 2.01 bit per pixel.
-
-    double qualityFactor = 2.01;
-
-    double pixelsPerFrame = outputSize.Width * outputSize.Height;
-    double pixelsPerSecond = pixelsPerFrame * (1000.0 / frameInterval);
-    double bitrate = pixelsPerSecond * qualityFactor;
-    
-    return bitrate;
-}
-
-
 void MJPEGWriter::SetupEncoder(SavingContext^ savingCtx, ImageFormat imgFormat, int quality)
 {
     AVCodecContext* ctx = avcodec_alloc_context3(savingCtx->pOutputCodec);
@@ -432,8 +420,8 @@ void MJPEGWriter::SetupEncoder(SavingContext^ savingCtx, ImageFormat imgFormat, 
     ctx->max_b_frames = 0;
 
     // Threading
-    //pCodecContext->thread_type = FF_THREAD_FRAME;
-    //pCodecContext->thread_count = 0; // auto
+    ctx->thread_type = FF_THREAD_SLICE;
+    ctx->thread_count = 0; // auto
 
     savingCtx->pOutputCodecContext = ctx;
 }
@@ -441,8 +429,6 @@ void MJPEGWriter::SetupEncoder(SavingContext^ savingCtx, ImageFormat imgFormat, 
 
 bool MJPEGWriter::EncodeAndWrite(SavingContext^ savingCtx, array<System::Byte>^ managedBuffer, Int64 length, bool topDown)
 {
-    bool written = false;
-    
     long long then = m_swEncoding->ElapsedMilliseconds;
 
     // Wrap the existing contiguous byte array.
@@ -510,91 +496,7 @@ bool MJPEGWriter::EncodeAndWrite(SavingContext^ savingCtx, array<System::Byte>^ 
 
     WritePacket(savingCtx);
     
-    written = true;
-    
-
-    /*do
-    {
-        Int64 then = m_swEncoding->ElapsedMilliseconds;
-
-        int width = savingCtx->outputSize.Width;
-        int height = savingCtx->outputSize.Height;
-        
-        pin_ptr<uint8_t> pRGB24Buffer = &managedBuffer[0];
-        avpicture_fill((AVPicture*)savingCtx->pInputFrame, pRGB24Buffer, AV_PIX_FMT_BGR24, width, height);
-        
-        // Alter planes and stride to vertically flip image during conversion.
-        if (!topDown)
-        {
-          savingCtx->pInputFrame->data[0] += savingCtx->pInputFrame->linesize[0] * (height - 1);
-          savingCtx->pInputFrame->linesize[0] = -savingCtx->pInputFrame->linesize[0];
-        }
-
-        // Prepare the color space converted frame.
-        if ((pYUV420Frame = av_frame_alloc()) == nullptr) 
-        {
-            log->Error("YUV420P frame not allocated");
-            break;
-        }
-
-        int yuvBufferSize = avpicture_get_size(AV_PIX_FMT_YUV420P, width, height);
-        pYUV420Buffer = (uint8_t*)av_malloc(yuvBufferSize);
-        if (pYUV420Buffer == nullptr) 
-        {
-            log->Error("YUV frame buffer not allocated");
-            break;
-        }
-        
-        avpicture_fill((AVPicture*)pYUV420Frame, pYUV420Buffer, AV_PIX_FMT_YUV420P, width, height);
-        
-        // Perform the color space conversion.
-        if (sws_scale(savingCtx->pScalingContext, savingCtx->pInputFrame->data, savingCtx->pInputFrame->linesize, 0, height, pYUV420Frame->data, pYUV420Frame->linesize) < 0) 
-        {
-            log->Error("Color conversion failed");
-            break;
-        }
-
-        int encodedSize = yuvBufferSize;
-        if (!savingCtx->uncompressed)
-        {
-            // Allocated JPEG frame buffer. 
-            // Assumes uncompressed size is always smaller than compressed. (Not technically true).
-            int jpegBufferSize = yuvBufferSize;
-            pJpegBuffer = (uint8_t*)av_malloc(jpegBufferSize);
-            if (pJpegBuffer == nullptr) 
-            {
-                log->Error("output video buffer not allocated");
-                break;
-            }
-        
-            // Actual encoding step.
-            encodedSize = avcodec_encode_video(savingCtx->pOutputCodecContext, pJpegBuffer, jpegBufferSize, pYUV420Frame);
-        }
-
-        m_encodingDurationAccumulator += (m_swEncoding->ElapsedMilliseconds - then);
-
-        if (encodedSize <= 0)
-            break;
-
-        if (savingCtx->uncompressed)
-            WritePacket(encodedSize, savingCtx, pYUV420Buffer, true);
-        else
-            WritePacket(encodedSize, savingCtx, pJpegBuffer, true);
-
-        written = true;
-    }
-    while(false);
-
-    if (pJpegBuffer != nullptr)
-        av_free(pJpegBuffer);
-
-    if (pYUV420Frame != nullptr)
-        av_free(pYUV420Frame);
-
-    if (pYUV420Buffer != nullptr)
-        av_free(pYUV420Buffer);*/
-
-    return written;
+    return true;
 }
 
 
@@ -671,26 +573,16 @@ void MJPEGWriter::LogFFMpegError(String^ context, int errorCode)
 
 void MJPEGWriter::LogStats()
 {
-    if (m_SavingContext->frameCounter % 100 != 0)
+    int periodFrames = 50;
+    if (m_SavingContext->frameCounter % periodFrames != 0)
         return;
     
     log->DebugFormat("Frame #{0}. Conversion/Encoding: ~{1:0.000} ms. Write: ~{2:0.000} ms.",
         m_SavingContext->frameCounter, 
-        (float)m_encodingDurationAccumulator / 100, 
-        (float)m_writeDurationAccumulator / 100);
+        (float)m_encodingDurationAccumulator / periodFrames,
+        (float)m_writeDurationAccumulator / periodFrames);
 
     m_encodingDurationAccumulator = 0;
     m_writeDurationAccumulator = 0;
 }
 
-
-int MJPEGWriter::GreatestCommonDenominator(int a, int b)
-{
-     if (a == 0) return b;
-     if (b == 0) return a;
-
-     if (a > b)
-        return GreatestCommonDenominator(a % b, b);
-     else
-        return GreatestCommonDenominator(a, b % a);
-}

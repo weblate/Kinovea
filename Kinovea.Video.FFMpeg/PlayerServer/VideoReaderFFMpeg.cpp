@@ -2622,7 +2622,7 @@ AVFrame* VideoReaderFFMpeg::ScaleHardwareFrame(AVFrame* srcFrame)
     if (ret < 0)
     {
         LogFFMpegError("av_buffersrc_add_frame_flags", ret);
-        //av_frame_free(&filteredFrame);
+        av_frame_free(&hwScaledFrame);
         return nullptr;
     }
 
@@ -2631,6 +2631,8 @@ AVFrame* VideoReaderFFMpeg::ScaleHardwareFrame(AVFrame* srcFrame)
     if (ret < 0)
     {
         LogFFMpegError("av_buffersink_get_frame", ret);
+        av_frame_free(&hwScaledFrame);
+        return nullptr;
     }
 
     return hwScaledFrame;
@@ -2639,11 +2641,7 @@ AVFrame* VideoReaderFFMpeg::ScaleHardwareFrame(AVFrame* srcFrame)
 
 bool VideoReaderFFMpeg::CreateHardwareScalingGraph(AVFrame* sourceFrame, int dstWidth, int dstHeight)
 {
-    //---------------------------------------
-    // Graph
-    //---------------------------------------
-
-    // This graph must be recreated when any of the following change:
+    // The hardware scaling graph must be recreated when any of the following change:
     // - destination width/height (change when preview size change).
     // - source width/height (shouldn't change).
     // - destination format (shouldn't change).
@@ -2793,11 +2791,8 @@ bool VideoReaderFFMpeg::CreateHardwareScalingGraph(AVFrame* sourceFrame, int dst
         return false;
     }
 
-
-    // Diagnostics
-    log->DebugFormat("source format: {0}, hwFramesCtx->format: {1}, ->sw_format: {2}, source size: {3}x{4}, dest size: {5}x{6}.",
+    log->DebugFormat("Created hardware scaling graph. Source format: {0}. Software format: {1}, Scaling: {3}x{4} -> {5}x{6}.",
         GetPixelFormatString(static_cast<AVPixelFormat>(sourceFrame->format)),
-        GetPixelFormatString(hwFramesCtx->format),
         GetPixelFormatString(hwFramesCtx->sw_format),
         sourceFrame->width, sourceFrame->height,
         dstWidth, dstHeight);
@@ -2813,9 +2808,9 @@ bool VideoReaderFFMpeg::CreateHardwareScalingGraph(AVFrame* sourceFrame, int dst
     }
 
     // Memorize some values to detect if we need to rebuild the filter.
+    mMemoSrcFormat = static_cast<AVPixelFormat>(sourceFrame->format);
     mMemoSrcWidth = sourceFrame->width;
     mMemoSrcHeight = sourceFrame->height;
-    mMemoSrcFormat = static_cast<AVPixelFormat>(sourceFrame->format);
     mMemoDstWidth = dstWidth;
     mMemoDstHeight = dstHeight;
 
