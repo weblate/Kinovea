@@ -22,7 +22,7 @@ namespace Kinovea.ScreenManager
             get { return recording; }
         }
 
-        public long Ellapsed { get; private set; }
+        public long Elapsed { get; private set; }
 
         private bool allocated;
         private Delayer delayer;
@@ -196,7 +196,7 @@ namespace Kinovea.ScreenManager
                 }
             }
 
-            Ellapsed = stopwatch.ElapsedMilliseconds - then;
+            Elapsed = stopwatch.ElapsedMilliseconds - then;
         }
 
         private void DoStopRecord()

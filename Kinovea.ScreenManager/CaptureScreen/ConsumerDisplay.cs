@@ -42,7 +42,7 @@ namespace Kinovea.ScreenManager
             get { return frame; }
         }
 
-        public long Ellapsed { get; private set; }
+        public long Elapsed { get; private set; }
 
         private RingBuffer buffer;
         private ImageDescriptor imageDescriptor;
@@ -124,7 +124,7 @@ namespace Kinovea.ScreenManager
             if (allocated)
                 frame.Import(entry);
 
-            Ellapsed = stopwatch.ElapsedMilliseconds - then;
+            Elapsed = stopwatch.ElapsedMilliseconds - then;
         }
     }
 }

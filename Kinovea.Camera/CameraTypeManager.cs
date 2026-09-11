@@ -309,10 +309,10 @@ namespace Kinovea.Camera
                 stopwatch.Restart();
                 var s = manager.DiscoverCameras(cameraBlurbs);
                 summaries.AddRange(s);
-                long ellapsed = stopwatch.ElapsedMilliseconds;
-                totalTime += ellapsed;
+                long elapsed = stopwatch.ElapsedMilliseconds;
+                totalTime += elapsed;
                 stats.Add(string.Format("{0}: {1} ({2} ms)",
-                    manager.CameraTypeFriendlyName, s.Count, ellapsed));
+                    manager.CameraTypeFriendlyName, s.Count, elapsed));
             }
 
             // Dump stats

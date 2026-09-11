@@ -27,7 +27,7 @@ namespace Kinovea.ScreenManager
 
         /// <summary>
         /// Return the remaining time within the quiet period, as the ratio 
-        /// of the ellapsed time to the configured time.
+        /// of the elapsed time to the configured time.
         /// 0.0 means the start of the quiet period.
         /// 1.0 or more means we are past the quiet period.
         /// If the quiet period is not active, returns 1.0f.
@@ -35,11 +35,11 @@ namespace Kinovea.ScreenManager
         public static float QuietProgress()
         {
             float quietPeriod = PreferencesManager.CapturePreferences.CaptureAutomationConfiguration.TriggerQuietPeriod;
-            float ellapsed = (float)(DateTime.Now - quietPeriodStart).TotalSeconds;
+            float elapsed = (float)(DateTime.Now - quietPeriodStart).TotalSeconds;
             if (quietPeriod == 0)
                 return 1.0f;
 
-            return ellapsed / quietPeriod;
+            return elapsed / quietPeriod;
         }
 
         public static bool IsQuiet()

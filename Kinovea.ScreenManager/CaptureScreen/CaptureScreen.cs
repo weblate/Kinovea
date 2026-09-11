@@ -326,10 +326,10 @@ namespace Kinovea.ScreenManager
         /// </summary>
         public void TriggerCapture(float triggerAgeMilliseconds)
         {
-            long initEllapsed = initStopwatch.ElapsedMilliseconds;
-            if (initEllapsed < initQuietPeriod)
+            long initElapsed = initStopwatch.ElapsedMilliseconds;
+            if (initElapsed < initQuietPeriod)
             {
-                log.DebugFormat("Trigger ignored: {0} ms after initialization.", initEllapsed);
+                log.DebugFormat("Trigger ignored: {0} ms after initialization.", initElapsed);
                 return;
             }
 
@@ -1199,19 +1199,19 @@ namespace Kinovea.ScreenManager
                 return;
 
             // Compute load (processing time vs frame budget).
-            long ellapsed = 0;
+            long elapsed = 0;
             if (recordingMode == CaptureRecordingMode.Camera)
             {
                 // Here we don't report load if not recording as it's non-blocking.
                 if (recording && consumerRealtime != null)
-                    ellapsed = consumerRealtime.Ellapsed;
+                    elapsed = consumerRealtime.Elapsed;
             }
             else if ((recordingMode == CaptureRecordingMode.Delay || recordingMode == CaptureRecordingMode.Scheduled) && consumerDelayer != null)
             {
-                ellapsed = consumerDelayer.Ellapsed;
+                elapsed = consumerDelayer.Elapsed;
             }
 
-            float load = (ellapsed / (1000.0f / (float)pipelineManager.Frequency)) * 100;
+            float load = (elapsed / (1000.0f / (float)pipelineManager.Frequency)) * 100;
              
             string signal = string.Format(" {0:0.00} fps", pipelineManager.Frequency);
             string bandwidth = string.Format(" {0:0.00} MB/s", cameraGrabber.LiveDataRate);

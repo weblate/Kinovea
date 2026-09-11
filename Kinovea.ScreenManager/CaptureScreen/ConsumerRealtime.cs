@@ -23,7 +23,7 @@ namespace Kinovea.ScreenManager
             get { return recording; }
         }
 
-        public long Ellapsed { get; private set; }
+        public long Elapsed { get; private set; }
 
         private ImageDescriptor imageDescriptor;
         private MJPEGWriter writer;
@@ -104,7 +104,7 @@ namespace Kinovea.ScreenManager
 
             writer.SaveFrame(imageDescriptor.Format, entry.Buffer, entry.PayloadLength, imageDescriptor.TopDown);
 
-            Ellapsed = stopwatch.ElapsedMilliseconds - then;
+            Elapsed = stopwatch.ElapsedMilliseconds - then;
         }
     }
 }
