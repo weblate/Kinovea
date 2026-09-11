@@ -4689,39 +4689,41 @@ namespace Kinovea.ScreenManager
             timeWatcher.LogTime("Before DrawImage");
 
             Rectangle rDst = new Rectangle(Point.Empty, _renderingSize);
+            bool mirrored = m_FrameServer.Metadata.Mirrored;
+            Rectangle zoomWindow = _transform.ZoomWindowInDecodedImage;
 
             bool drawn = false;
             if (m_FrameServer.VideoReader.Geometry.IsPreScaled)
             {
                 // Source image should be at the right size, unless it has been temporarily disabled.
-                if (!m_FrameServer.Metadata.Mirrored  && _transform.ZoomWindowInDecodedImage.Size.CloseTo(_renderingSize, 4))
+                if (!mirrored && zoomWindow.Size.CloseTo(_renderingSize, 4))
                 {
-                    g.DrawImageUnscaled(_sourceImage, -_transform.ZoomWindowInDecodedImage.Left, -_transform.ZoomWindowInDecodedImage.Top);
+                    g.DrawImageUnscaled(_sourceImage, -zoomWindow.Left, -zoomWindow.Top);
                     drawn = true;
                 }
             }
-            else if (!m_FrameServer.Metadata.Mirrored && !_transform.Zooming && _transform.Stretch == 1.0f && _transform.DecodingScale == 1.0)
+            else if (!mirrored && !_transform.Zooming && _transform.Stretch == 1.0f && _transform.DecodingScale == 1.0)
             {
                 // This allow to draw unscaled while tracking or caching for example, provided we are rendering at original size.
-                g.DrawImageUnscaled(_sourceImage, -_transform.ZoomWindowInDecodedImage.Left, -_transform.ZoomWindowInDecodedImage.Top);
+                g.DrawImageUnscaled(_sourceImage, - zoomWindow.Left, -zoomWindow.Top);
                 drawn = true;
             }
 
             if (!drawn)
             {
                 Rectangle rSrc;
-                if (m_FrameServer.Metadata.Mirrored)
+                if (mirrored)
                 {
                     rSrc = new Rectangle(
-                        _sourceImage.Width - 1 - _transform.ZoomWindowInDecodedImage.X,
-                        _transform.ZoomWindowInDecodedImage.Top,
-                        -_transform.ZoomWindowInDecodedImage.Width,
-                        _transform.ZoomWindowInDecodedImage.Height
+                        _sourceImage.Width - 1 - zoomWindow.X,
+                        zoomWindow.Top,
+                        -zoomWindow.Width,
+                        zoomWindow.Height
                      );
                 }
                 else
                 {
-                    rSrc = _transform.ZoomWindowInDecodedImage;
+                    rSrc = zoomWindow;
                 }
 
                 g.DrawImage(_sourceImage, rDst, rSrc, GraphicsUnit.Pixel);

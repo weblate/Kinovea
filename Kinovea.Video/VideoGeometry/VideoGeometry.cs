@@ -27,9 +27,9 @@ namespace Kinovea.Video
         public Size OutputSize { get; }
 
         /// <summary>
-        /// This should be true whenever the OutputSize matches the request PresentationSize.
-        /// If the presentation size is unknown, for example when loading the file for the first 
-        /// time, this should be false.
+        /// This should be true whenever the OutputSize of the decoder matches 
+        /// the requested PresentationSize. If the presentation size is unknown, 
+        /// for example when loading the file for the first time, this should be false.
         /// </summary>
         public bool IsPreScaled { get; }
 

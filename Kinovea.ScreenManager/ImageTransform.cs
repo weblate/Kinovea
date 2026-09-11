@@ -90,7 +90,7 @@ namespace Kinovea.ScreenManager
         /// </summary>
         public Rectangle ZoomWindow
         {
-            get { return directZoomWindow;}
+            get { return zoomWindowInReferenceImage;}
         }
 
         /// <summary>
@@ -136,11 +136,12 @@ namespace Kinovea.ScreenManager
         #region Members
 
         // Variables used to transform coordinates in the reference size into coordinates in the final rendering surface.
-        // These should only be used by drawings and cursors. Not by the image itself because the image is not necessarily decoded at the reference size.
+        // These should only be used by drawings and cursors. Not by the image itself because the image
+        // is not necessarily decoded at the reference size.
         private Size referenceSize;
         private float stretch = 1.0f;
         private float zoom = 1.0f;
-        private Rectangle directZoomWindow;
+        private Rectangle zoomWindowInReferenceImage;
 
         // Variables used by the paint routine to render the image on the rendering surface.
         private float decodingScale = 1.0f;
@@ -157,10 +158,10 @@ namespace Kinovea.ScreenManager
             this.referenceSize = referenceSize;
             stretch = 1.0f;
             zoom = 1.0f;
-            directZoomWindow = new Rectangle(0, 0, referenceSize.Width, referenceSize.Height);
+            zoomWindowInReferenceImage = new Rectangle(0, 0, referenceSize.Width, referenceSize.Height);
 
             decodingScale = 1.0f;
-            zoomWindowInDecodedImage = directZoomWindow;
+            zoomWindowInDecodedImage = zoomWindowInReferenceImage;
         }
         #endregion
 
@@ -177,7 +178,7 @@ namespace Kinovea.ScreenManager
         {
             stretch = 1.0f;
             zoom = 1.0f;
-            directZoomWindow = new Rectangle(0, 0, referenceSize.Width, referenceSize.Height);
+            zoomWindowInReferenceImage = new Rectangle(0, 0, referenceSize.Width, referenceSize.Height);
             UpdateZoomWindowInDecodedImage();
         }
 
@@ -187,7 +188,7 @@ namespace Kinovea.ScreenManager
         public void ResetZoom()
         {
             zoom = 1.0f;
-            directZoomWindow = new Rectangle(0, 0, referenceSize.Width, referenceSize.Height);
+            zoomWindowInReferenceImage = new Rectangle(0, 0, referenceSize.Width, referenceSize.Height);
             UpdateZoomWindowInDecodedImage();
         }
 
@@ -199,10 +200,10 @@ namespace Kinovea.ScreenManager
         {
             // All computations are done in UV space.
             RectangleF zoomWindowUVInImage = new RectangleF(
-                (float)(directZoomWindow.Left + 0.5f) / referenceSize.Width,
-                (float)(directZoomWindow.Top + 0.5f) / referenceSize.Height,
-                (float)directZoomWindow.Width / referenceSize.Width,
-                (float)directZoomWindow.Height / referenceSize.Height);
+                (float)(zoomWindowInReferenceImage.Left + 0.5f) / referenceSize.Width,
+                (float)(zoomWindowInReferenceImage.Top + 0.5f) / referenceSize.Height,
+                (float)zoomWindowInReferenceImage.Width / referenceSize.Width,
+                (float)zoomWindowInReferenceImage.Height / referenceSize.Height);
 
             Size containerSize = new SizeF(referenceSize.Width * stretch, referenceSize.Height * stretch).ToSize();
             PointF pivotUVInZoomWindow = new PointF(
@@ -225,7 +226,7 @@ namespace Kinovea.ScreenManager
                 pivotUVInImage.Y - pivotUVInZoomWindow.Y * newSizeUV.Height
             );
 
-            directZoomWindow = new RectangleF(
+            zoomWindowInReferenceImage = new RectangleF(
                 newTopLeftUV.X * referenceSize.Width - 0.5f,
                 newTopLeftUV.Y * referenceSize.Height - 0.5f,
                 newSizeUV.Width * referenceSize.Width,
@@ -233,24 +234,24 @@ namespace Kinovea.ScreenManager
             ).ToRectangle();
 
             if (contain || !allowOutOfScreen)
-                directZoomWindow.Location = ConfineZoomWindow(directZoomWindow, referenceSize);
+                zoomWindowInReferenceImage.Location = ConfineZoomWindow(zoomWindowInReferenceImage, referenceSize);
 
             UpdateZoomWindowInDecodedImage();
         }
         public void MoveZoomWindow(float dx, float dy, bool contain)
         {
             // Move the zoom window keeping the same zoom factor.
-            directZoomWindow.Location = new PointF(directZoomWindow.Left - dx, directZoomWindow.Top - dy).ToPoint();
+            zoomWindowInReferenceImage.Location = new PointF(zoomWindowInReferenceImage.Left - dx, zoomWindowInReferenceImage.Top - dy).ToPoint();
 
             if (contain || !allowOutOfScreen)
-                directZoomWindow.Location = ConfineZoomWindow(directZoomWindow, referenceSize);
+                zoomWindowInReferenceImage.Location = ConfineZoomWindow(zoomWindowInReferenceImage, referenceSize);
 
             UpdateZoomWindowInDecodedImage();
         }
 
         private void UpdateZoomWindowInDecodedImage()
         {
-            zoomWindowInDecodedImage = directZoomWindow.Scale(decodingScale, decodingScale);
+            zoomWindowInDecodedImage = zoomWindowInReferenceImage.Scale(decodingScale, decodingScale);
         }
 
         /// <summary>
@@ -274,8 +275,8 @@ namespace Kinovea.ScreenManager
             float x = point.X;
             float y = point.Y;
 
-            x = directZoomWindow.Left + (x / (stretch * zoom));
-            y = directZoomWindow.Top + (y / (stretch * zoom));
+            x = zoomWindowInReferenceImage.Left + (x / (stretch * zoom));
+            y = zoomWindowInReferenceImage.Top + (y / (stretch * zoom));
 
             return new PointF(x, y);
         }
@@ -316,8 +317,8 @@ namespace Kinovea.ScreenManager
         /// </summary>
         public Point Transform(PointF point)
         {
-            float x = (point.X - directZoomWindow.Left) * zoom * stretch;
-            float y = (point.Y - directZoomWindow.Top) * zoom * stretch;
+            float x = (point.X - zoomWindowInReferenceImage.Left) * zoom * stretch;
+            float y = (point.Y - zoomWindowInReferenceImage.Top) * zoom * stretch;
 
             return new Point((int)Math.Round(x), (int)Math.Round(y));
         }
