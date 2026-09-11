@@ -15,10 +15,20 @@ namespace Kinovea.Video
     public class VideoGeometryRequest
     {
         /// <summary>
-        /// Size of the viewport where the image is going to be rendered.
+        /// Size of the rectangle where the image is going to be rendered.
         /// This may be empty initially.
+        /// This may be larger or smaller than the viewport itself.
         /// </summary>
         public Size PresentationSize { get; }
+
+        /// <summary>
+        /// Scale factor applied to the reference size to produce the presentation size.
+        /// </summary>
+        public double PresentationScale { get; }
+        /// <summary>
+        /// Scale factor applied to the reference size to fit into the viewport.
+        /// </summary>
+        public double ViewportFitScale { get; }
 
         /// <summary>
         /// Whether the player allows the reader to pre-scale the image.
@@ -39,6 +49,8 @@ namespace Kinovea.Video
 
         public VideoGeometryRequest(
             Size presentationSize, 
+            double presentationScale,
+            double viewportFitScale,
             bool allowPreScaling, 
             ImageAspectRatio aspectRatio,
             ImageRotation rotation,
@@ -47,6 +59,8 @@ namespace Kinovea.Video
             List<TimedPoint> stabilizationData)
         {
             PresentationSize = presentationSize;
+            PresentationScale = presentationScale;
+            ViewportFitScale = viewportFitScale;
             AllowPreScaling = allowPreScaling;
             AspectRatio = aspectRatio;
             Rotation = rotation;

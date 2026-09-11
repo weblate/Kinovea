@@ -1464,11 +1464,20 @@ void VideoReaderFFMpeg::ResolveGeometry(VideoGeometryRequest^ request)
     // Compute mReference size and an initial mScaledSize (aspect ratio but not rotated).
     ComputeReferenceSize(request->AspectRatio, request->Rotation);
     mOutputSize = mReferenceSize;
-    
+    double decodingScale = 1.0;
+
     if (bothAllowPrescaling)
     {
-        // Allow upscaling.
-        mOutputSize = FitHelper::Fit(mReferenceSize, request->PresentationSize, true);
+        // Decode up to the original size, or to the viewport-fit size if that's larger.
+        // This allows pre-upscaling for videos smaller than the viewport.
+        double maxDecodingScale = Math::Max(1.0, request->ViewportFitScale);
+        decodingScale = Math::Min(request->PresentationScale, maxDecodingScale);
+
+        // Round to even to avoid odd sizes which are not supported by some scalers.
+        int width = (int)(mReferenceSize.Width * decodingScale / 2.0 + 0.5) * 2;
+        int height = (int)(mReferenceSize.Height * decodingScale / 2.0 + 0.5) * 2;
+
+        mOutputSize = Size(width, height);
     }
 
     mScaledSize = mOutputSize;
@@ -1477,8 +1486,6 @@ void VideoReaderFFMpeg::ResolveGeometry(VideoGeometryRequest^ request)
         mScaledSize = Size(mOutputSize.Height, mOutputSize.Width);
     }
 
-    float decodingScale = mOutputSize.Width / (float)mReferenceSize.Width;
-    
     SetStabilizationData(request->StabilizationData);
 
     // Prescaled means we output at the presentation size and the player 

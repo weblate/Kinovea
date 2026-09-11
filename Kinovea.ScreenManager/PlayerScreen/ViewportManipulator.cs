@@ -49,11 +49,19 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Final stretch factor going from reference to presentation size.
+        /// Scale to go from reference size to presentation size.
         /// </summary>
-        public double Stretch
+        public double PresentationScale
         {
-            get { return stretchFactor; }
+            get { return presentationScale; }
+        }
+
+        /// <summary>
+        /// Scale to go from reference size to maximum size that fits in the viewport.
+        /// </summary>
+        public double ViewportFitScale
+        {
+            get { return viewportFitScale; }
         }
         #endregion
 
@@ -61,10 +69,9 @@ namespace Kinovea.ScreenManager
         private Size renderingSize;               
         private Point renderingLocation;
 
-        // Asked stretch factor.
-        // Will be updated during the computation if it's too large to fit.
-        // This is the factor applied to the reference size in order to make it fit in the drawing surface.
-        private double stretchFactor = 1.0;       
+        private double presentationScale = 1.0;       
+        private double viewportFitScale = 1.0;
+
         private VideoReader reader;
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         #endregion
@@ -78,37 +85,32 @@ namespace Kinovea.ScreenManager
         /// Compute the presentation window size and location, and stretch factor.
         /// This should be refactored when we switch to full viewport zooming.
         /// </summary>
-        public void Manipulate(Size _containerSize, double _stretchFactor, bool _fillContainer)
+        public void Manipulate(Size containerSize, double stretch, bool forceFit)
         {
             // Note: the reference size already takes image rotation into account.
             // rotatedCanvas is a different thing and was meant for Kinogram but is not used right now.
             Size referenceSize = reader.Geometry.ReferenceSize;
-            stretchFactor = _stretchFactor;
-            Size stretchedSize = new Size((int)(referenceSize.Width * stretchFactor), (int)(referenceSize.Height * stretchFactor));
+            presentationScale = stretch;
+            Size stretchedSize = new Size((int)(referenceSize.Width * presentationScale), (int)(referenceSize.Height * presentationScale));
 
-            //if (rotatedCanvas)
-            //{
-            //    referenceSize = new Size(referenceSize.Height, referenceSize.Width);
-            //    stretchedSize = new Size(stretchedSize.Height, stretchedSize.Width);
-            //}
-
-            if (!stretchedSize.FitsIn(_containerSize) || _fillContainer)
+            if (!stretchedSize.FitsIn(containerSize) || forceFit)
             {
                 // Ratio stretch based on the reference size.
-                renderingSize = FitHelper.Fit(stretchedSize, _containerSize, true);
-                stretchFactor = (double)renderingSize.Width / referenceSize.Width;
+                renderingSize = FitHelper.Fit(stretchedSize, containerSize, true);
+                presentationScale = (double)renderingSize.Width / referenceSize.Width;
             }
             else
             {
                 renderingSize = stretchedSize;
             }
 
-            log.DebugFormat("Presentation size: {0}x{1}.", renderingSize.Width, renderingSize.Height);
-
             // Center the window in the container.
             renderingLocation = new Point(
-                (_containerSize.Width - renderingSize.Width) / 2, 
-                (_containerSize.Height - renderingSize.Height) / 2);
+                (containerSize.Width - renderingSize.Width) / 2, 
+                (containerSize.Height - renderingSize.Height) / 2);
+
+            log.DebugFormat("Viewport size: {0}x{1}.", containerSize.Width, containerSize.Height);
+            log.DebugFormat("Presentation size: {0}x{1} ({2:0.000}x).", renderingSize.Width, renderingSize.Height, presentationScale);
         }
 
 
@@ -117,10 +119,10 @@ namespace Kinovea.ScreenManager
         /// Ensures the result has the exact aspect ratio as the reference size
         /// and is even in both dimensions.
         /// </summary>
-        public void Manipulate2(Size containerSize, double stretch, bool fitToViewport)
+        public void Manipulate2(Size containerSize, double stretch, bool forceFit)
         {
             // When we switch to full viewport zooming this should take the zoom factor instead.
-            stretchFactor = stretch;
+            presentationScale = stretch;
 
             Size referenceSize = reader.Geometry.ReferenceSize;
             bool allowBeyondViewport = false;
@@ -140,7 +142,7 @@ namespace Kinovea.ScreenManager
             int viewportMultiplier = FitHelper.GetFitEvenMultiplier(containerSize, ratioWidth, ratioHeight);
 
             int presentationMultiplier;
-            if (fitToViewport)
+            if (forceFit)
             {
                 presentationMultiplier = viewportMultiplier;
             }
@@ -159,7 +161,7 @@ namespace Kinovea.ScreenManager
 
             renderingSize = new Size(ratioWidth * presentationMultiplier, ratioHeight * presentationMultiplier);
             
-            stretchFactor = (double)renderingSize.Width / referenceSize.Width;
+            presentationScale = (double)renderingSize.Width / referenceSize.Width;
 
             // Center the window in the container.
             renderingLocation = new Point(
@@ -171,5 +173,44 @@ namespace Kinovea.ScreenManager
             log.DebugFormat("Viewport size fit: {0}x{1} ({2}x).", ratioWidth * viewportMultiplier, ratioHeight * viewportMultiplier, viewportMultiplier);
             log.DebugFormat("Presentation size: {0}x{1} ({2}x).", renderingSize.Width, renderingSize.Height, presentationMultiplier);
         }
+
+        /// <summary>
+        /// Compute the presentation window size and location, and stretch factor.
+        /// </summary>
+        public void Manipulate3(Size viewportSize, double stretch, bool forceFit)
+        {
+            // Note: the reference size already takes image rotation into account.
+            Size referenceSize = reader.Geometry.ReferenceSize;
+            bool allowBeyondViewport = false;
+
+            // Get the maximum multiplier that fits in the viewport.
+            double scaleX = (double)viewportSize.Width / referenceSize.Width;
+            double scaleY = (double)viewportSize.Height / referenceSize.Height;
+            viewportFitScale = Math.Min(scaleX, scaleY);
+
+            presentationScale = stretch;
+
+            if (forceFit)
+            {
+                presentationScale = viewportFitScale;
+            }
+            else if (!allowBeyondViewport)
+            {
+                presentationScale = Math.Min(stretch, viewportFitScale);
+            }
+
+            renderingSize = new Size(
+                (int)(referenceSize.Width * presentationScale), 
+                (int)(referenceSize.Height * presentationScale));
+
+            renderingLocation = new Point(
+                    (viewportSize.Width - renderingSize.Width) / 2,
+                    (viewportSize.Height - renderingSize.Height) / 2);
+
+            log.DebugFormat("Reference size: {0}x{1}.", referenceSize.Width, referenceSize.Height);
+            log.DebugFormat("Viewport size: {0}x{1} (fit: {2:0.000}x).", viewportSize.Width, viewportSize.Height, viewportFitScale);
+            log.DebugFormat("Presentation size: {0}x{1} ({2:0.000}x).", renderingSize.Width, renderingSize.Height, presentationScale);
+        }
+
     }
 }

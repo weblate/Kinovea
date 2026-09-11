@@ -88,6 +88,8 @@ namespace Kinovea.ScreenManager
         #region Video geometry settings
         // Settings that aren't saved in metadata.
         Size presentationSize = Size.Empty;
+        double presentationScale = 1.0;
+        double viewportFitScale = 1.0;
         bool allowPreScaling = true;
         List<TimedPoint> stabilizationData = null;
         #endregion
@@ -318,12 +320,14 @@ namespace Kinovea.ScreenManager
         #endregion
 
         #region Update video geometry
-        public bool ChangePresentationSize(Size value)
+        public bool ChangePresentationSize(Size presentationSize, double presentationScale, double viewportFitScale)
         {
-            if (value == presentationSize)
+            if (presentationSize == this.presentationSize)
                 return false;
 
-            presentationSize = value;
+            this.presentationSize = presentationSize;
+            this.presentationScale = presentationScale;
+            this.viewportFitScale = viewportFitScale;
 
             return PublishVideoGeometryRequest();
         }
@@ -463,6 +467,8 @@ namespace Kinovea.ScreenManager
 
             VideoGeometryRequest request = new VideoGeometryRequest(
                 presentationSize,
+                presentationScale,
+                viewportFitScale,
                 allowPreScaling,
                 metadata.ImageAspect,
                 metadata.ImageRotation,

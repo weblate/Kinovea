@@ -2633,18 +2633,16 @@ namespace Kinovea.ScreenManager
 
             // If we have been forced to a different stretch (due to application resizing or minimizing),
             // make sure we aim for the user's last requested value.
-            if (!m_fill && m_lastUserStretch != m_viewportManipulator.Stretch)
+            if (!m_fill && m_lastUserStretch != m_viewportManipulator.PresentationScale)
                 targetStretch = m_lastUserStretch;
 
             // Stretch factor, zoom, or container size have been updated.
             // Update the presentation size and signal the change to the reader.
             // During the process, stretch may be forced to a different value.
-            //bool rotatedCanvas = videoFilterIsActive ? 
-            //    m_FrameServer.Metadata.ActiveVideoFilter.RotatedCanvas : 
-            //    false;
-
+            
             //m_viewportManipulator.Manipulate(panelCenter.Size, targetStretch, m_fill);
-            m_viewportManipulator.Manipulate2(panelCenter.Size, targetStretch, m_fill);
+            //m_viewportManipulator.Manipulate2(panelCenter.Size, targetStretch, m_fill);
+            m_viewportManipulator.Manipulate3(panelCenter.Size, targetStretch, m_fill);
 
             // Refactoring in progress. Ultimately only the displayRectangle will remain.
             pbSurfaceScreen.Location = m_viewportManipulator.RenderingLocation;
@@ -2666,7 +2664,11 @@ namespace Kinovea.ScreenManager
                     workingZone.Start :
                     m_FrameServer.VideoReader.Current.Timestamp;
 
-                cacheInvalidated = m_FrameServer.ChangePresentationSize(m_viewportManipulator.RenderingSize);
+                cacheInvalidated = m_FrameServer.ChangePresentationSize(
+                    m_viewportManipulator.RenderingSize, 
+                    m_viewportManipulator.PresentationScale, 
+                    m_viewportManipulator.ViewportFitScale);
+
                 if (cacheInvalidated)
                 {
                     m_FrameServer.VideoReader.RestartPrebuffering(memoTimestamp);
@@ -2674,7 +2676,7 @@ namespace Kinovea.ScreenManager
 
                 // Stretch is between the reference and what we draw.
                 // Scale is between the reference and what we get from the reader.
-                m_FrameServer.ImageTransform.Stretch = m_viewportManipulator.Stretch;
+                m_FrameServer.ImageTransform.Stretch = m_viewportManipulator.PresentationScale;
                 m_FrameServer.ImageTransform.DecodingScale = m_FrameServer.VideoReader.Geometry.Scale;
             }
 
@@ -4724,10 +4726,10 @@ namespace Kinovea.ScreenManager
             Rectangle zoomWindow = _transform.ZoomWindowInDecodedImage;
 
             bool drawn = false;
-            if (m_FrameServer.VideoReader.Geometry.IsPreScaled)
+            if (!mirrored && m_FrameServer.VideoReader.Geometry.IsPreScaled)
             {
                 // Source image should be at the right size, unless it has been temporarily disabled.
-                if (!mirrored && zoomWindow.Size.CloseTo(_renderingSize, 4))
+                if (zoomWindow.Size.CloseTo(_renderingSize, 4))
                 {
                     g.DrawImageUnscaled(_sourceImage, -zoomWindow.Left, -zoomWindow.Top);
                     drawn = true;
