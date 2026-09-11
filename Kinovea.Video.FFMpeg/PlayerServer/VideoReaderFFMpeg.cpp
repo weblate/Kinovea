@@ -512,7 +512,7 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
             VideoCapabilities::CanCache |
             VideoCapabilities::CanChangeAspectRatio |
             VideoCapabilities::CanChangeImageRotation |
-            VideoCapabilities::CanChangeDeinterlacing |
+            //VideoCapabilities::CanChangeDeinterlacing | // Temporarily disabled until we find a solution.
             VideoCapabilities::CanChangeWorkingZone |
             VideoCapabilities::CanStabilize;
 
