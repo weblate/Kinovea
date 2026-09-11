@@ -863,10 +863,12 @@ namespace Kinovea.ScreenManager
             if (enable)
             {
                 trkFrame.UpdateCacheSnapshot(m_FrameServer.VideoReader.CacheSnapshot);
+                trkFrame.UpdateSeekProgress(m_FrameServer.VideoReader.SeekProgress);
             }
             else
             {
                 trkFrame.UpdateCacheSnapshot(null);
+                trkFrame.UpdateSeekProgress(null);
             }
         }
 
@@ -3536,6 +3538,7 @@ namespace Kinovea.ScreenManager
                 return;
 
             trkFrame.UpdateCacheSnapshot(m_FrameServer.VideoReader.CacheSnapshot);
+            trkFrame.UpdateSeekProgress(m_FrameServer.VideoReader.SeekProgress);
         }
         #endregion
 

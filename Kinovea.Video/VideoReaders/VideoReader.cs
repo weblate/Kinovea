@@ -58,14 +58,39 @@ namespace Kinovea.Video
         #region Properties
         public abstract VideoFrame Current { get; }
 
+        /// <summary>
+        /// Snapshot of the frames stored in the cache, for 
+        /// feedback in the timeline.
+        /// </summary>
         public abstract CacheSnapshot CacheSnapshot { get; }
 
+        /// <summary>
+        /// Progress of the current seek operation
+        /// for feedback in the timeline.
+        /// </summary>
+        public virtual SeekProgress SeekProgress 
+        { 
+            get { return seekProgress; } 
+        }
+
         public abstract VideoCapabilities Flags { get; }
+        
+        /// <summary>
+        /// Intrinsic information about the video, such as duration, size, etc.
+        /// </summary>
         public abstract VideoInfo Info { get; }
         public abstract bool Loaded { get; }
         public abstract VideoSection WorkingZone { get;}
+
+        /// <summary>
+        /// Current caching mode used by the reader.
+        /// </summary>
         public abstract VideoDecodingMode DecodingMode { get; }
 
+        /// <summary>
+        /// Frame geometry (size, aspect ratio, rotation, etc.) used by the 
+        /// reader. This is published after a call to UpdateVideoGeometry().
+        /// </summary>
         public abstract VideoGeometry Geometry { get; }
 
         public virtual IWorkingZoneFramesContainer WorkingZoneFrames 
@@ -136,6 +161,7 @@ namespace Kinovea.Video
         // Player state from the latest player request.
         // Used by the reader to schedule decoding.
         protected PlayerState mRequestedPlayerState = PlayerState.MakeInvalid();
+        private SeekProgress seekProgress = SeekProgress.MakeEmpty();
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         #endregion
 

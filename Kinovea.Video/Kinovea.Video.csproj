@@ -180,6 +180,7 @@
     <Compile Include="Caching\CacheLoadMode.cs" />
     <Compile Include="Caching\CacheSnapshot.cs" />
     <Compile Include="Caching\RequestFulfilledEventArgs.cs" />
+    <Compile Include="Caching\SeekProgress.cs" />
     <Compile Include="Caching\TryAcquireResult.cs" />
     <Compile Include="Caching\CacheTimestampRelation.cs" />
     <Compile Include="Caching\DecoderRelocation.cs" />

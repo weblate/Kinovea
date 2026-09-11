@@ -54,6 +54,7 @@ namespace Kinovea.ScreenManager
         {
             Metadata,
             Cache,
+            Seek,
         }
 
         #region Events
@@ -139,8 +140,13 @@ namespace Kinovea.ScreenManager
             get { return showCacheSnapshot; }
             set { showCacheSnapshot = value; }
         }
+        public bool ShowSeekProgress
+        {
+            get { return showSeekProgress; }
+            set { showSeekProgress = value; }
+        }
         #endregion
-            
+
         #region Members
         private bool invalidateAsked;           // Used to prevent reentry in MouseMove before the paint event has been honored.	
 
@@ -191,13 +197,19 @@ namespace Kinovea.ScreenManager
         private bool showCacheSnapshot = true;
         private CacheSnapshot cacheSnapshot = CacheSnapshot.MakeEmpty();
         private long lastCacheSnapshot = -1;
+        private static readonly Color colorCache = Color.Lime;
+
+        // Seek progress
+        private bool showSeekProgress = true;
+        private SeekProgress seekProgress = SeekProgress.MakeEmpty();
+        private long lastSeekProgress = -1;
+        private static readonly Color colorSeek = Color.Crimson;
 
         // Standard colors.
         private static readonly Color colorPlayHead = Color.FromArgb(20, 161, 80);
         private static readonly Pen penPlayHead = new Pen(colorPlayHead);
         private static readonly Pen penFrameTick = Pens.LightGray;
         private static readonly SolidBrush brushPlayHead = new SolidBrush(colorPlayHead);
-        private static readonly Color colorCache = Color.Lime;
         #endregion
 
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -290,11 +302,30 @@ namespace Kinovea.ScreenManager
             if (cacheSnapshot.Version <= lastCacheSnapshot)
                 return;
 
-            log.DebugFormat("Updating cache snapshot: {0}", cacheSnapshot);
             this.cacheSnapshot = cacheSnapshot;
             lastCacheSnapshot = cacheSnapshot.Version;
             Invalidate();
         }
+
+        public void UpdateSeekProgress(SeekProgress seekProgress)
+        {
+            if (seekProgress == null)
+            {
+                this.seekProgress = null;
+                lastSeekProgress = -1;
+                Invalidate();
+                return;
+            }
+
+            if (seekProgress.Version <= lastSeekProgress)
+                return;
+
+            this.seekProgress = seekProgress;
+            lastSeekProgress = seekProgress.Version;
+            Invalidate();
+        }
+
+
 
         /// <summary>
         /// This should only be used by the common controls.
@@ -482,6 +513,11 @@ namespace Kinovea.ScreenManager
             {
                 DrawCacheSnapshot(canvas);
             }
+
+            if (showSeekProgress && seekProgress != null)
+            {
+                DrawSeekProgress(canvas);
+            }
         }
 
         private void DrawFrameTick(Graphics canvas, int x)
@@ -553,6 +589,9 @@ namespace Kinovea.ScreenManager
                     case MarkerType.Cache:
                         canvas.FillRectangle(brush, left, gutterTop + 0.5f, width, gutterHeightCache - 0.5f);
                         break;
+                    case MarkerType.Seek:
+                        canvas.FillRectangle(brush, left, gutterTop + 0.5f, width, gutterHeightCache - 0.5f);
+                        break;
                 }
 
             }
@@ -574,6 +613,18 @@ namespace Kinovea.ScreenManager
                 Color color = colorCache;
                 DrawRangeMark(canvas, new Pair<Point, Color>(range, color), MarkerType.Cache);
             }
+        }
+
+        private void DrawSeekProgress(Graphics canvas)
+        {
+            VideoSection section = seekProgress.Section;
+
+            if (section.IsEmpty)
+                return;
+
+            Point range = TimestampToPixel(section.Start, section.End);
+            Color color = colorSeek;
+            DrawRangeMark(canvas, new Pair<Point, Color>(range, color), MarkerType.Seek);
         }
 
         #endregion

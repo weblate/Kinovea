@@ -156,6 +156,14 @@ namespace Kinovea { namespace Video { namespace FFMpeg
             }
         }
 
+        virtual property Kinovea::Video::SeekProgress^ SeekProgress
+        {
+            Kinovea::Video::SeekProgress^ get() override
+            {
+                return mSeekProgress;
+            }
+        }
+
 
     // Construction / Destruction.
     public:
@@ -254,6 +262,8 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         SingleFrame^ mSingleFrameContainer;
         PreBuffer2^ mPreBuffer;
         Cache^ mCache;
+        Kinovea::Video::SeekProgress^ mSeekProgress = Kinovea::Video::SeekProgress::MakeEmpty();
+        long mSeekProgressUpdateCounter = 0;
 
         // Full caching mode.
         VideoSection mSectionToPrepend;

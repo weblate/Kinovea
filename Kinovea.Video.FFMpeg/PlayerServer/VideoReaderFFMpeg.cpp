@@ -1659,6 +1659,22 @@ ReadResult VideoReaderFFMpeg::ReadFrameSeek(int64_t targetTimestamp, bool doSeek
             return ReadResult::NewJob;
         }
 
+        if (framesDecoded == 1)
+        {
+            mSeekProgressUpdateCounter++;
+            mSeekProgress = gcnew Kinovea::Video::SeekProgress(
+                mSeekProgressUpdateCounter, 
+                VideoSection(mDecodedTimestamp, mDecodedTimestamp));
+        }
+        else
+        {
+            mSeekProgressUpdateCounter++;
+            mSeekProgress = gcnew Kinovea::Video::SeekProgress(
+                mSeekProgressUpdateCounter, 
+                VideoSection(mSeekProgress->Section.Start, mDecodedTimestamp));
+
+        }
+
         if (framesDecoded % 10 == 0)
         {
             log->DebugFormat("Advancing towards [~{0}]. Last decoded: [{1}]. Decoded {2} frames.", 
@@ -1692,6 +1708,11 @@ ReadResult VideoReaderFFMpeg::ReadFrameSeek(int64_t targetTimestamp, bool doSeek
                 
                 if (mDecodedTimestamp >= targetTimestamp)
                 {
+                    mSeekProgressUpdateCounter++;
+                    mSeekProgress = gcnew Kinovea::Video::SeekProgress(
+                        mSeekProgressUpdateCounter,
+                        VideoSection::MakeEmpty());
+
                     av_frame_free(&frame);
                     break;
                 }
