@@ -1441,7 +1441,10 @@ void VideoReaderFFMpeg::ResolveGeometry(VideoGeometryRequest^ request)
     }
 
     bool readerAllowsPrescaling = mCachingMode == VideoDecodingMode::PreBuffering;
-    bool bothAllowPrescaling = readerAllowsPrescaling && request->AllowPreScaling;
+    bool bothAllowPrescaling = 
+        readerAllowsPrescaling && 
+        request->AllowPreScaling && 
+        PreferencesManager::PlayerPreferences->EnablePreviewScaling;
 
     // Compute mReference size and an initial mScaledSize (aspect ratio but not rotated).
     ComputeReferenceSize(request->AspectRatio, request->Rotation);

@@ -306,6 +306,12 @@ namespace Kinovea.Services
             set { enableHardwareDecoding = value; Save(); }
         }
 
+        public bool EnablePreviewScaling
+        {
+            get { BeforeRead(); return enablePreviewScaling; }
+            set { enablePreviewScaling = value; Save(); }
+        }
+
         public bool EnableHardwareScaling
         {
             get { BeforeRead(); return enableHardwareScaling; }
@@ -366,6 +372,7 @@ namespace Kinovea.Services
         private bool speedLabelInterval = false;
         private bool loopPlayback = true;
         private bool enableHardwareDecoding = true;
+        private bool enablePreviewScaling = true;
         private bool enableHardwareScaling = true;
         #endregion
 
@@ -480,6 +487,7 @@ namespace Kinovea.Services
             writer.WriteElementString("SpeedLabelInterval", XmlHelper.WriteBoolean(speedLabelInterval));
             writer.WriteElementString("LoopPlayback", XmlHelper.WriteBoolean(loopPlayback));
             writer.WriteElementString("EnableHardwareDecoding", XmlHelper.WriteBoolean(enableHardwareDecoding));
+            writer.WriteElementString("EnablePreviewScaling", XmlHelper.WriteBoolean(enablePreviewScaling));
             writer.WriteElementString("EnableHardwareScaling", XmlHelper.WriteBoolean(enableHardwareScaling));
         }
         
@@ -640,6 +648,9 @@ namespace Kinovea.Services
                         break;
                     case "EnableHardwareDecoding":
                         enableHardwareDecoding = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
+                        break;
+                    case "EnablePreviewScaling":
+                        enablePreviewScaling = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
                         break;
                     case "EnableHardwareScaling":
                         enableHardwareScaling = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());

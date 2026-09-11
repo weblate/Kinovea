@@ -73,7 +73,6 @@ namespace Kinovea.Root
       this.lvCommands = new System.Windows.Forms.ListView();
       this.colCommand = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
       this.colKey = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-      this.tbHotkey = new Kinovea.Services.TextboxHotkey();
       this.btnClear = new System.Windows.Forms.Button();
       this.btnApply = new System.Windows.Forms.Button();
       this.grpJumping = new System.Windows.Forms.GroupBox();
@@ -88,6 +87,8 @@ namespace Kinovea.Root
       this.cmbImageFormats = new System.Windows.Forms.ComboBox();
       this.lblAspectRatio = new System.Windows.Forms.Label();
       this.chkDeinterlace = new System.Windows.Forms.CheckBox();
+      this.chkPreviewScaling = new System.Windows.Forms.CheckBox();
+      this.tbHotkey = new Kinovea.Services.TextboxHotkey();
       ((System.ComponentModel.ISupportInitialize)(this.trkMemoryBuffer)).BeginInit();
       this.tabSubPages.SuspendLayout();
       this.tabGeneral.SuspendLayout();
@@ -225,6 +226,7 @@ namespace Kinovea.Root
       // 
       // tabPlayer
       // 
+      this.tabPlayer.Controls.Add(this.chkPreviewScaling);
       this.tabPlayer.Controls.Add(this.chkHardwareScaling);
       this.tabPlayer.Controls.Add(this.chkHardwareDecoding);
       this.tabPlayer.Controls.Add(this.chkLoopPlayback);
@@ -244,7 +246,7 @@ namespace Kinovea.Root
       // 
       this.chkHardwareScaling.Checked = true;
       this.chkHardwareScaling.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.chkHardwareScaling.Location = new System.Drawing.Point(18, 230);
+      this.chkHardwareScaling.Location = new System.Drawing.Point(18, 263);
       this.chkHardwareScaling.Name = "chkHardwareScaling";
       this.chkHardwareScaling.Size = new System.Drawing.Size(369, 20);
       this.chkHardwareScaling.TabIndex = 71;
@@ -269,7 +271,7 @@ namespace Kinovea.Root
       // 
       this.chkLoopPlayback.Checked = true;
       this.chkLoopPlayback.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.chkLoopPlayback.Location = new System.Drawing.Point(18, 124);
+      this.chkLoopPlayback.Location = new System.Drawing.Point(18, 150);
       this.chkLoopPlayback.Name = "chkLoopPlayback";
       this.chkLoopPlayback.Size = new System.Drawing.Size(369, 20);
       this.chkLoopPlayback.TabIndex = 69;
@@ -279,7 +281,7 @@ namespace Kinovea.Root
       // 
       // chkShowFramerate
       // 
-      this.chkShowFramerate.Location = new System.Drawing.Point(18, 98);
+      this.chkShowFramerate.Location = new System.Drawing.Point(18, 124);
       this.chkShowFramerate.Name = "chkShowFramerate";
       this.chkShowFramerate.Size = new System.Drawing.Size(369, 20);
       this.chkShowFramerate.TabIndex = 68;
@@ -289,7 +291,7 @@ namespace Kinovea.Root
       // 
       // chkInteractiveTracker
       // 
-      this.chkInteractiveTracker.Location = new System.Drawing.Point(18, 72);
+      this.chkInteractiveTracker.Location = new System.Drawing.Point(18, 98);
       this.chkInteractiveTracker.Name = "chkInteractiveTracker";
       this.chkInteractiveTracker.Size = new System.Drawing.Size(369, 20);
       this.chkInteractiveTracker.TabIndex = 67;
@@ -301,7 +303,7 @@ namespace Kinovea.Root
       // 
       this.chkEnableFrameSkipping.Checked = true;
       this.chkEnableFrameSkipping.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.chkEnableFrameSkipping.Location = new System.Drawing.Point(18, 46);
+      this.chkEnableFrameSkipping.Location = new System.Drawing.Point(18, 72);
       this.chkEnableFrameSkipping.Name = "chkEnableFrameSkipping";
       this.chkEnableFrameSkipping.Size = new System.Drawing.Size(369, 20);
       this.chkEnableFrameSkipping.TabIndex = 66;
@@ -311,7 +313,7 @@ namespace Kinovea.Root
       // 
       // chkSyncByMotion
       // 
-      this.chkSyncByMotion.Location = new System.Drawing.Point(18, 176);
+      this.chkSyncByMotion.Location = new System.Drawing.Point(18, 202);
       this.chkSyncByMotion.Name = "chkSyncByMotion";
       this.chkSyncByMotion.Size = new System.Drawing.Size(369, 20);
       this.chkSyncByMotion.TabIndex = 34;
@@ -321,7 +323,7 @@ namespace Kinovea.Root
       // 
       // chkLockSpeeds
       // 
-      this.chkLockSpeeds.Location = new System.Drawing.Point(18, 150);
+      this.chkLockSpeeds.Location = new System.Drawing.Point(18, 176);
       this.chkLockSpeeds.Name = "chkLockSpeeds";
       this.chkLockSpeeds.Size = new System.Drawing.Size(369, 20);
       this.chkLockSpeeds.TabIndex = 33;
@@ -390,14 +392,6 @@ namespace Kinovea.Root
       // 
       this.colKey.Text = "";
       this.colKey.Width = 129;
-      // 
-      // tbHotkey
-      // 
-      this.tbHotkey.Location = new System.Drawing.Point(6, 117);
-      this.tbHotkey.Name = "tbHotkey";
-      this.tbHotkey.Size = new System.Drawing.Size(218, 20);
-      this.tbHotkey.TabIndex = 70;
-      this.tbHotkey.Text = "None";
       // 
       // btnClear
       // 
@@ -571,6 +565,7 @@ namespace Kinovea.Root
       // 
       // chkDeinterlace
       // 
+      this.chkDeinterlace.Enabled = false;
       this.chkDeinterlace.Location = new System.Drawing.Point(19, 87);
       this.chkDeinterlace.Name = "chkDeinterlace";
       this.chkDeinterlace.Size = new System.Drawing.Size(369, 20);
@@ -578,6 +573,26 @@ namespace Kinovea.Root
       this.chkDeinterlace.Text = "dlgPreferences_DeinterlaceByDefault";
       this.chkDeinterlace.UseVisualStyleBackColor = true;
       this.chkDeinterlace.CheckedChanged += new System.EventHandler(this.chkDeinterlace_CheckedChanged);
+      // 
+      // chkPreviewScaling
+      // 
+      this.chkPreviewScaling.Checked = true;
+      this.chkPreviewScaling.CheckState = System.Windows.Forms.CheckState.Checked;
+      this.chkPreviewScaling.Location = new System.Drawing.Point(18, 46);
+      this.chkPreviewScaling.Name = "chkPreviewScaling";
+      this.chkPreviewScaling.Size = new System.Drawing.Size(369, 20);
+      this.chkPreviewScaling.TabIndex = 72;
+      this.chkPreviewScaling.Text = "Enable preview scaling";
+      this.chkPreviewScaling.UseVisualStyleBackColor = true;
+      this.chkPreviewScaling.CheckedChanged += new System.EventHandler(this.chkPreviewScaling_CheckedChanged);
+      // 
+      // tbHotkey
+      // 
+      this.tbHotkey.Location = new System.Drawing.Point(6, 117);
+      this.tbHotkey.Name = "tbHotkey";
+      this.tbHotkey.Size = new System.Drawing.Size(218, 20);
+      this.tbHotkey.TabIndex = 70;
+      this.tbHotkey.Text = "None";
       // 
       // PreferencePanelPlayer
       // 
@@ -646,5 +661,6 @@ namespace Kinovea.Root
         private System.Windows.Forms.CheckBox chkLoopPlayback;
         private System.Windows.Forms.CheckBox chkHardwareDecoding;
         private System.Windows.Forms.CheckBox chkHardwareScaling;
+        private System.Windows.Forms.CheckBox chkPreviewScaling;
     }
 }

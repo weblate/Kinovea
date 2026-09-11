@@ -74,6 +74,7 @@ namespace Kinovea.Root
 
         // Player
         private bool enableHardwareDecoding;
+        private bool enablePreviewScaling;
         private bool enableHardwareScaling;
         private bool enableFrameSkipping;
         private bool loopPlayback;
@@ -136,6 +137,7 @@ namespace Kinovea.Root
             
             // Player
             enableHardwareDecoding = PreferencesManager.PlayerPreferences.EnableHardwareDecoding;
+            enablePreviewScaling = PreferencesManager.PlayerPreferences.EnablePreviewScaling;
             enableHardwareScaling = PreferencesManager.PlayerPreferences.EnableHardwareScaling;
             enableFrameSkipping = PreferencesManager.PlayerPreferences.EnableFrameSkipping;
             loopPlayback = PreferencesManager.PlayerPreferences.LoopPlayback;
@@ -203,6 +205,7 @@ namespace Kinovea.Root
             chkLoopPlayback.Text = "Loop playback";
 
             chkHardwareDecoding.Checked = enableHardwareDecoding;
+            chkPreviewScaling.Checked = enablePreviewScaling;
             chkHardwareScaling.Checked = enableHardwareScaling;
             chkEnableFrameSkipping.Checked = enableFrameSkipping;
             chkInteractiveTracker.Checked = interactiveFrameTracker;
@@ -320,6 +323,11 @@ namespace Kinovea.Root
         private void chkHardwareDecoding_CheckedChanged(object sender, EventArgs e)
         {
             enableHardwareDecoding = chkHardwareDecoding.Checked;
+        }
+
+        private void chkPreviewScaling_CheckedChanged(object sender, EventArgs e)
+        {
+            enablePreviewScaling = chkPreviewScaling.Checked;
         }
 
         private void chkHardwareScaling_CheckedChanged(object sender, EventArgs e)
@@ -496,6 +504,7 @@ namespace Kinovea.Root
 
             // Player
             PreferencesManager.PlayerPreferences.EnableHardwareDecoding = enableHardwareDecoding;
+            PreferencesManager.PlayerPreferences.EnablePreviewScaling = enablePreviewScaling;
             PreferencesManager.PlayerPreferences.EnableHardwareScaling = enableHardwareScaling;
             PreferencesManager.PlayerPreferences.EnableFrameSkipping = enableFrameSkipping;
             PreferencesManager.PlayerPreferences.InteractiveFrameTracker = interactiveFrameTracker;

@@ -482,6 +482,7 @@ namespace Kinovea.ScreenManager
             BuildContextMenus();
             BuildExportButtons();
             AfterSyncAlphaChange();
+            allowPreScaling = PreferencesManager.PlayerPreferences.EnablePreviewScaling;
 
             viewport = pbSurfaceScreen;
 
@@ -560,6 +561,7 @@ namespace Kinovea.ScreenManager
             buttonPlay.Image = Resources.flatplay;
             sldrSpeed.Enabled = false;
             UpdateShowCacheInTimeline();
+            allowPreScaling = PreferencesManager.PlayerPreferences.EnablePreviewScaling;
 
             screenDescriptor = null;
             infobar.ScreenDescriptor = null;
@@ -1043,6 +1045,7 @@ namespace Kinovea.ScreenManager
             timecodeFormat = PreferencesManager.PlayerPreferences.TimecodeFormat;
             defaultFadingEnabled = PreferencesManager.PlayerPreferences.DefaultFading.Enabled;
             enablePixelFiltering = PreferencesManager.PlayerPreferences.EnablePixelFiltering;
+            UpdateAllowPreScaling();
             UpdateShowCacheInTimeline();
 
             // Update default fading for all drawings.
@@ -2814,10 +2817,8 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Allow or disallow prescaling depending on current player state.
+        /// Allow or disallow prescaling depending on current player state and prefs.
         /// Prescaling is not compatible with tracking or video export.
-        /// The passed value is for one known element but this still tests
-        /// any other source of incompatibility.
         /// </summary>
         private void UpdateAllowPreScaling()
         {
@@ -2826,8 +2827,11 @@ namespace Kinovea.ScreenManager
 
             bool wasAllowed = allowPreScaling;
 
-            allowPreScaling = !saveInProgress && !m_FrameServer.Metadata.AnyTracking;
-            
+            allowPreScaling = 
+                !saveInProgress && 
+                !m_FrameServer.Metadata.AnyTracking &&
+                PreferencesManager.PlayerPreferences.EnablePreviewScaling;
+
             // Note: only do the resize update if the status has changed, 
             // otherwise it will go recursive and stack overflows.
 
