@@ -60,6 +60,7 @@ namespace Kinovea.ScreenManager
         private HorizontalAlignment alignment = HorizontalAlignment.Center;
         private Font font;
         private bool enabled;
+        private bool hasPendingMessage;
         private Control canvasHolder;
         private static readonly int defaultDuration = 1000;
         private static readonly int defaultFontSize = 24;
@@ -79,14 +80,45 @@ namespace Kinovea.ScreenManager
         #endregion
         
         #region Public Methods
+
+        /// <summary>
+        /// Set a message and start the toast.
+        /// </summary>
         public void Show(string message, int duration, HorizontalAlignment alignment = HorizontalAlignment.Center)
         {
-            timer.Interval = duration;
             this.message = message;
+            timer.Interval = duration;
             this.alignment = alignment;
+
+            hasPendingMessage = false;
             enabled = true;
             StartStopTimer();
         }
+
+        /// <summary>
+        /// Configure the message without showing it.
+        /// </summary>
+        public void Configure(string message, int duration, HorizontalAlignment alignment = HorizontalAlignment.Center)
+        {
+            this.message = message;
+            timer.Interval = duration;
+            this.alignment = alignment;
+            hasPendingMessage = true;
+        }
+
+        /// <summary>
+        /// Show the message that was previously configured with Configure().
+        /// </summary>
+        public void Show()
+        {
+            if (!hasPendingMessage)
+                return;
+
+            enabled = true;
+            StartStopTimer();
+            hasPendingMessage = false;
+        }
+
         public void Draw(Graphics canvas)
         {
             if(!enabled || string.IsNullOrEmpty(message) || canvasHolder == null)

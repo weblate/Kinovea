@@ -2034,8 +2034,11 @@ namespace Kinovea.ScreenManager
             }
             else
             {
-                PresentFrame(targetTimestamp);
+                PresentFrame(targetTimestamp, true);
             }
+
+            // Finally, show the toast message.
+            m_MessageToaster.Show();
         }
 
 
@@ -2079,7 +2082,7 @@ namespace Kinovea.ScreenManager
                     alignment = HorizontalAlignment.Left;
                 }
 
-                m_MessageToaster.Show(message, 750, alignment);
+                m_MessageToaster.Configure(message, 750, alignment);
             }
 
             return snappedTimestamp;
@@ -2148,7 +2151,7 @@ namespace Kinovea.ScreenManager
                     alignment = HorizontalAlignment.Left;
                 }
 
-                m_MessageToaster.Show(message, 750, alignment);
+                m_MessageToaster.Configure(message, 750, alignment);
             }
 
             return newTimestamp;   
