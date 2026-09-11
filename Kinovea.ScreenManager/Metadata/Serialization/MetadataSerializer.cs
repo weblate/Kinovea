@@ -312,6 +312,7 @@ namespace Kinovea.ScreenManager
                         metadata.CalibrationHelper.CaptureFramesPerSecond = r.ReadElementContentAsDouble();
                         break;
                     case "UserFramerate":
+                    case "VideoFramerate":
                         // Ignored.
                         r.ReadElementContentAsDouble();
                         break;

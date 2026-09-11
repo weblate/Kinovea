@@ -40,6 +40,7 @@ using Kinovea.Services;
 using System.Xml;
 using System.Text;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 #endregion
 
 namespace Kinovea.ScreenManager
@@ -532,6 +533,7 @@ namespace Kinovea.ScreenManager
             // Called when we load a new video over an already loaded screen.
             // also recalled if the video loaded but the first frame cannot be displayed.
             log.Debug("Reset screen to empty state.");
+            stopwatchLoad.Restart();
 
             // For replay observers we can still keep some state we would like to maintain between loads.
             // The mechanism for this is to backup the data in the screen descriptor before unloading.
@@ -568,6 +570,9 @@ namespace Kinovea.ScreenManager
             
             infobar.Visible = false;
             ResetAsked?.Invoke(this, EventArgs.Empty);
+
+            log.DebugFormat("Screen reset to empty state: {0} ms.", stopwatchLoad.ElapsedMilliseconds);
+            stopwatchLoad.Restart();
         }
         private void ClearKeyframeBoxes()
         {
@@ -608,11 +613,12 @@ namespace Kinovea.ScreenManager
             // Called from CommandLoadMovie when VideoFile.Load() is successful.
             //---------------------------------------------------------------------------
             log.DebugFormat("Video file loaded: {0} ms --------------------", stopwatchLoad.ElapsedMilliseconds);
-            m_FrameServer.VideoReader.RequestFulfilled += VideoReader_RequestFulfilled;
+            stopwatchLoad.Restart();
 
             //-----------------------------
             // Read/decode the first frame.
             //-----------------------------
+            m_FrameServer.VideoReader.RequestFulfilled += VideoReader_RequestFulfilled;
             PresentFrame(m_FrameServer.VideoReader.Info.FirstTimeStamp);
 
             // Bail out on any error.
@@ -787,7 +793,7 @@ namespace Kinovea.ScreenManager
                 CollapseKeyframePanel(false);
 
             PresentFrame(workingZone.Start);
-
+            
             double oldHSF = m_FrameServer.Metadata.HighSpeedFactor;
             double captureInterval = 1000 / m_FrameServer.Metadata.CalibrationHelper.CaptureFramesPerSecond;
 
@@ -919,6 +925,7 @@ namespace Kinovea.ScreenManager
 
             VideoSection newZone = workingZone;
             VideoDecodingMode oldCachingMode = m_FrameServer.VideoReader.DecodingMode;
+            long oldTimestamp = currentTimestamp;
 
             log.DebugFormat("Working zone update. {0} -> {1}.", m_FrameServer.VideoReader.WorkingZone, newZone);
 
@@ -946,8 +953,10 @@ namespace Kinovea.ScreenManager
                 // This will trigger a PresentFrame.
                 ResizeUpdate(true);
             }
-            else
+            else if (currentTimestamp != oldTimestamp)
             {
+                // If we are still on the same timestamp there shouldn't be
+                // any need to re-decode the frame.
                 PresentFrame(currentTimestamp);
             }
 
@@ -2799,24 +2808,25 @@ namespace Kinovea.ScreenManager
         /// Stretch or squeeze the video image in the viewport.
         /// May trigger a decoding size change at the reader level.
         /// </summary>
-        private bool ResizeUpdate(bool finished)
+        private void ResizeUpdate(bool finished)
         {
             if (!m_FrameServer.Loaded)
-                return false;
+                return;
 
-            bool changed = StretchSqueezeSurface(finished);
+            bool cacheInvalidated = StretchSqueezeSurface(finished);
 
             if (finished)
             {
                 m_FrameServer.Metadata.ResizeFinished();
-                RefreshImage();
+                if (cacheInvalidated)
+                {
+                    PresentFrame(currentTimestamp);
+                }
             }
             else
             {
                 DoInvalidate();
             }
-
-            return changed;
         }
 
         /// <summary>
@@ -3244,7 +3254,7 @@ namespace Kinovea.ScreenManager
         /// 
         /// This is only called for frame by frame navigation. For playback see PresentPlayback().
         /// </summary>
-        private void PresentFrame(long targetTimestamp, bool forceSynchronous = false)
+        private void PresentFrame(long targetTimestamp, bool forceSynchronous = false, [CallerMemberName] string caller = "")
         {
             if (!m_FrameServer.VideoReader.Loaded)
                 return;
@@ -3257,9 +3267,12 @@ namespace Kinovea.ScreenManager
                 forceSynchronous,
                 targetTimestamp);
             
-            log.DebugFormat("PresentFrame. Target: [~{0}]. Current: [{1}]. Sync: {2}. Mode: {3}.", 
-                targetTimestamp, currentTimestamp, forceSynchronous, 
-                m_FrameServer.VideoReader.DecodingMode);
+            log.DebugFormat("PresentFrame. Target: [~{0}]. Current: [{1}]. Sync: {2}. Mode: {3}. Caller: {4}.", 
+                targetTimestamp, 
+                currentTimestamp, 
+                forceSynchronous, 
+                m_FrameServer.VideoReader.DecodingMode,
+                caller);
 
             bool acquired = false;
 
