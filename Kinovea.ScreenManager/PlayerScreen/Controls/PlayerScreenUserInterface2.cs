@@ -1306,7 +1306,7 @@ namespace Kinovea.ScreenManager
             int w = m_FrameServer.Metadata.ImageSize.Width;
             int h = m_FrameServer.Metadata.ImageSize.Height;
             string size = string.Format("{0}×{1} px", w, h);
-            string captureFps = string.Format("{0:0.00} fps", 1000 / timeMapper.CaptureInterval);
+            string captureFps = string.Format("{0:0.00} fps ({1:0.###} ms)", 1000 / timeMapper.CaptureInterval, timeMapper.CaptureInterval);
 
             infobar.Visible = true;
             infobar.Dock = DockStyle.Fill;

@@ -192,7 +192,7 @@ namespace Kinovea.Root
             tabPlayer.Text = "Player";
 
             chkHardwareDecoding.Text = "Enable hardware decoding";
-            chkEnableFrameSkipping.Text = "Enable frame skipping";
+            chkEnableFrameSkipping.Text = "Allow skipping frames if there is not enough time";
             chkInteractiveTracker.Text = RootLang.dlgPreferences_Player_InteractiveFrameTracker;
             chkLockSpeeds.Text = RootLang.dlgPreferences_Player_SyncLockSpeeds;
             chkSyncByMotion.Text = "Use motion synchronization mode";
