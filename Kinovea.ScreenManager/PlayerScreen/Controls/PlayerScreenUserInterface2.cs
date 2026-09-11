@@ -513,7 +513,7 @@ namespace Kinovea.ScreenManager
             // The speed factor range corresponds to the factor wrt nominal video playback speed.
             // The time mapper takes values in this range of factors and returns slider values, or vice versa.
             // It uses a piecewise function, mapping [0.0, 1.0] to [0, 500] and [1.0, 10.0] to [500, 1000].
-            timeMapper.Initialize(0, 1000, 500, 0.0, 10.0, 1.0);
+            timeMapper.Initialize(1000, 500, 10.0);
             speedFactor = 1.0;
             sldrSpeed.Initialize(0, 1000, 500, timeMapper);
 
@@ -2495,12 +2495,11 @@ namespace Kinovea.ScreenManager
         {
             double speedFactorReal = timeMapper.GetSpeedFactorReal(sldrSpeed.Value);
             string speedLabel = "";
-
             if (speedFactorReal < 1.0)
             {
                 speedLabel = string.Format("{0:0}%", speedFactorReal * 100);
             }
-            else if (speedFactorReal > 1.0)
+            else
             {
                 speedLabel = string.Format("{0:0.#}x", speedFactorReal);
             }
