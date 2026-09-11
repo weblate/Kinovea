@@ -107,7 +107,7 @@ namespace Kinovea.Pipeline
 
             long nextPosition = producerPosition.Data + 1;
 
-            WaitForReaders(nextPosition);
+            //WaitForReaders(nextPosition);
 
             entry = slots[(int)(nextPosition & remainderMask)];
 

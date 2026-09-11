@@ -263,7 +263,7 @@ namespace Kinovea.Video
                         }
                         else
                         {
-                            log.DebugFormat("Waiting to add [{0}]. Cached: {1}.", frame.Timestamp, frames.Count);
+                            //log.DebugFormat("Waiting to add [{0}]. Cached: {1}.", frame.Timestamp, frames.Count);
                             Monitor.Wait(sync);
                             continue;
                         }
@@ -280,8 +280,7 @@ namespace Kinovea.Video
                 }
 
                 frames.Add(frame.Timestamp, frame);
-                log.DebugFormat("Added frame [{0}]. Cached: {1}.", 
-                    frame.Timestamp, frames.Count);
+                //log.DebugFormat("Added frame [{0}]. Cached: {1}.", frame.Timestamp, frames.Count);
 
                 UpdateCacheSnapshot();
                 Monitor.PulseAll(sync);

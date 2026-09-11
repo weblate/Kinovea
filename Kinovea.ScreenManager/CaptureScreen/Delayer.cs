@@ -183,7 +183,9 @@ namespace Kinovea.ScreenManager
             //-----------------------------------------------
             Frame frame = Get(age, out _);
             if (frame == null)
+            {
                 return false;
+            }
 
             // The UI thread and the recording thread can ask the same image at the same time.
             // Here we have a strong need to get the image out, so in the event the UI has 
@@ -291,7 +293,9 @@ namespace Kinovea.ScreenManager
             //----------------------------------------------------------
             target = 0;
             if (!allocated || frames.Count == 0)
+            {
                 return null;
+            }
 
             int newestAvailablePosition = 0;
 
@@ -299,10 +303,14 @@ namespace Kinovea.ScreenManager
             // The mechanism to avoid actually reading the frame we want while the other thread is writing to it 
             // is the reserve capacity.
             lock (lockerPosition)
+            {
                 newestAvailablePosition = currentPosition;
+            }
 
             if (newestAvailablePosition < 0)
+            {
                 return null;
+            }
 
             target = newestAvailablePosition - age;
             if (target <= 0)

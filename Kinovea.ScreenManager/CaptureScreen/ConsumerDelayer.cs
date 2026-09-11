@@ -151,8 +151,18 @@ namespace Kinovea.ScreenManager
             base.AfterDeactivate();
         }
 
-        protected override void ProcessEntry(long position, Frame entry)
+        protected override void ProcessEntry(long frameId, Frame entry)
         {
+            // FIXME: this should not do the recording itself.
+            // This should just copy-push the frame to the delay buffer and return.
+            // The producer has a small 8-frame buffer that must not be blocked by the consumer.
+            // It's possible for the producer to accumulate a few frames while we are busy here, 
+            // and we'll get called back for all the produced frames, but we shouldn't block to 
+            // the point of bloating the 8 slots.
+            // The frames are pushed into the much larger delay buffer anyway, and that's where the recording 
+            // takes frames from, so even if encoding isn't in real time, as long as the frames are still
+            // somewhere in the delay buffer we should be able to grab them.
+
             if (!allocated)
                 return;
 
@@ -178,9 +188,10 @@ namespace Kinovea.ScreenManager
             }
             else if (recording)
             {
+                // FIXME:
+                // Add the target frame to a list of frames to be written, and return immediately.
+
                 // Extract a bitmap from delayer at right delay and convert it into a frame for the writer.
-                // Note that we do not go through the delay compositer. We only support "normal" delay here.
-                // Compositers (e.g: quadrants with different ages) are only supported in display.
                 bool copied = delayer.GetStrong(age, delayedFrame);
                 if (copied)
                 {

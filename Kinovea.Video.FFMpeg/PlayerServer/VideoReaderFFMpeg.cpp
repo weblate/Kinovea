@@ -2054,10 +2054,10 @@ bool VideoReaderFFMpeg::ShouldStoreFrame()
     int64_t nextPublishTimestamp = (int64_t)Math::Round(lastPublished + timestampsPerPublish);
     bool shouldPublish = mDecodedTimestamp >= nextPublishTimestamp;
 
-    if (!shouldPublish)
-    {
-        log->DebugFormat("Skipping store of [{0}]. xxxxxxxxxxxxx", mDecodedTimestamp);
-    }
+    //if (!shouldPublish)
+    //{
+    //    log->DebugFormat("Skipping store of [{0}]. xxxxxxxxxxxxx", mDecodedTimestamp);
+    //}
 
     //log->WarnFormat("Policy: {0}. Decoded frame [{1}]. Last published [{2}]. Next presentation [{3}]. Publish: {4}.", 
     //    mDecodingPolicy.ToString(), mDecodedTimestamp, lastPublished, nextPublishTimestamp, shouldPublish);
@@ -2791,7 +2791,7 @@ bool VideoReaderFFMpeg::CreateHardwareScalingGraph(AVFrame* sourceFrame, int dst
         return false;
     }
 
-    log->DebugFormat("Created hardware scaling graph. Source format: {0}. Software format: {1}, Scaling: {3}x{4} -> {5}x{6}.",
+    log->DebugFormat("Created hardware scaling graph. Source format: {0}. Software format: {1}, Scaling: {2}x{3} -> {4}x{5}.",
         GetPixelFormatString(static_cast<AVPixelFormat>(sourceFrame->format)),
         GetPixelFormatString(hwFramesCtx->sw_format),
         sourceFrame->width, sourceFrame->height,
@@ -3176,7 +3176,7 @@ void VideoReaderFFMpeg::UpdateFrameSkippingPolicy()
     String^ logLine = String::Format("UpdateFrameSkippingPolicy. Lag: {0:0.000} s, Cache: {1}/{2}. Frame: {3}.",
         lag, mPreBuffer->Count, mPreBuffer->Capacity, mDecodedFrames);
 
-    log->DebugFormat(logLine);
+    //log->DebugFormat(logLine);
             
     // Check worst case scenario first.
     if (lag > mSeekAheadLagThreshold)
