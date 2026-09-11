@@ -108,9 +108,6 @@ void VideoReaderFFMpeg::Close()
     AVFrame* pSoftwareFrame = mSoftwareFrame;
     av_frame_free(&pSoftwareFrame);
 
-    AVFrame* pFilteredFrame = mFilteredFrame;
-    av_frame_free(&pFilteredFrame);
-
     if (mScalingCtx != nullptr)
     {
         SwsContext* pScalingCtx = mScalingCtx;
@@ -367,8 +364,8 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
     AVCodecID videoCodecId = videoStream->codecpar->codec_id;
     AVCodecContext* videoCodecCtx = nullptr;
     bool initializedDecoder = false;
-    bool allowHardwareDecoding = PreferencesManager::PlayerPreferences->EnableHardwareDecoding;
-    if (!forSummary && allowHardwareDecoding)
+    bool enableHardwareDecoding = PreferencesManager::PlayerPreferences->EnableHardwareDecoding;
+    if (!forSummary && enableHardwareDecoding)
     {
         initializedDecoder = TryInitializeHardwareDecoder(videoCodecId, videoStream, videoCodecCtx);
     }
@@ -2256,91 +2253,89 @@ int VideoReaderFFMpeg::SeekTo(int64_t targetTimestamp)
 ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool forSummary, bool force)
 {
     //-------------------------------------
-    // Convert the decoded frame to the final frame, wrap it in a Bitmap, 
+    // Scale, convert the decoded frame to the final frame, wrap it in a Bitmap, 
     // keep track of the native buffer through the .Tag of the Bitmap and
     // store the Bitmap in the active frame container.
     //--------------------------------------
-    
+   
     //--------------------------------------
-    // The frame goes through an ffmpeg filter graph with optional deinterlace,
-    // scaling and pixel format conversion.
+    // Hardware scaling is currently not supported.
     // 
-    // The graph sink is either retrieved into a reusable staging AVFrame (mFilteredFrame),
-    // which is then copied into the final converted AVFrame, or extracted directly
-    // into the final converted AVFrame.
-    // 
-    // In theory the copy shouldn't be necessary. The problem is that this AVFrame has row padding 
-    // and this seems to break a number of assumptions in other parts of the code.
-    // 
-    // We wrap the padded buffer into the Bitmap so anything handling these Bitmaps
-    // now needs to be careful about stride being different than width*4.
-    // 
-    // The Bitmap Copy helpers have been updated to copy row by row but the features involving 
-    // OpenCV aren't working correctly, most likely due to OpenCvSharp.Extensions.BitmapConverter.ToMat.
-    // This seems to copy the padded buffer into a packed Mat.
-    // It doesn't crash but the tracking doesn't work correctly.
-    // One way to fix it is to make an extra packed copy before passing to OpenCV.
-    // For simplicity we make the extra copy here.
-    //-------------------------------------
+    // Tried to enable hardware scaling but it doesn't work for now.
+    // The creation of the filter graph fails because the D3D11 texture cannot 
+    // be created. It seems to be related to how the filter is implemented and
+    // how it assumes it is added in an encoding context.
+    // For now we'll consider it a limitation of ffmpeg.
+    // To re-enable:
+    // check PreferencesManager::PlayerPreferences->EnableHardwareScaling;
+    // check decodedFrame size > mScaledSize.
+    // create a hardware scaling filter graph.
+    //--------------------------------------
+
     
-    // Convert from hardware frame to software frame if needed.
-    AVFrame* sourceFrame = GetSoftwareFrame(decodedFrame);
-    if (sourceFrame == nullptr)
+    bool isHardwareDecoding = decodedFrame->format == mHwPixelFormat && decodedFrame->hw_frames_ctx != nullptr;
+    
+    AVFrame* frameToConvert = nullptr;
+    if (isHardwareDecoding)
+    {
+        frameToConvert = GetSoftwareFrame(decodedFrame);
+    }
+    else
+    {
+        frameToConvert = decodedFrame;
+    }
+
+    if (frameToConvert == nullptr)
     {
         log->ErrorFormat("GetSoftwareFrame returned null.");
         return ReadResult::NotConverted;
     }
 
+    //--------------------------------------------------
+    // Deinterlacing is temporarily disabled.
+    // 
+    // The way the new YADIF filter works is very sequential, it requires
+    // the previous and next frame and keep them around internally.
+    // This breaks seems to break many assumptions in the code, for example when we
+    // decode the very first frame on the main thread for seeking, we expect to get 
+    // something, but YADIF returns error EAGAIN.
+    //
+    // Navigating the timeline is very broken when interlacing is active.
+    // Also the normal scaling can be done without a filter graph and works better.
+    // So for now we ignore the deinterlacing setting and we'll revisit this later.
+    //--------------------------------------------------
+
+    // Allocate and prepare the converted frame.
     AVFrame* convertedFrame = av_frame_alloc();
-    if (mCopyFilteredFrame)
+    //if (!mVideoGeometry->Deinterlacing)
     {
-        if (!mVideoGeometry->Deinterlacing)
-        {
-            // If the frame is interlaced copy the flag so ffmpeg doesn't complain 
-            // and does the scaling on the fields.
-            convertedFrame->flags = sourceFrame->flags & 
-                (AV_FRAME_FLAG_INTERLACED | AV_FRAME_FLAG_TOP_FIELD_FIRST);
-        }
-
-        // Preallocate buffers with packed alignment.
-        convertedFrame->format = sConvertPixelFormat;
-        convertedFrame->width = mScaledSize.Width;
-        convertedFrame->height = mScaledSize.Height;
-        int res = av_frame_get_buffer(convertedFrame, 1);
-        if (res < 0)
-        {
-            LogFFMpegError("av_frame_get_buffer", res);
-            av_frame_free(&convertedFrame);
-            return ReadResult::UnknownError;
-        }
+        // If the frame is interlaced copy the flag so ffmpeg doesn't complain 
+        // and does the correct scaling on the fields.
+        convertedFrame->flags = decodedFrame->flags & 
+            (AV_FRAME_FLAG_INTERLACED | AV_FRAME_FLAG_TOP_FIELD_FIRST);
     }
 
-    bool converted = false;
-    if (!mVideoGeometry->Deinterlacing && mCopyFilteredFrame)
+    // Preallocate buffers with packed alignment.
+    convertedFrame->format = sConvertPixelFormat;
+    convertedFrame->width = mScaledSize.Width;
+    convertedFrame->height = mScaledSize.Height;
+    int res = av_frame_get_buffer(convertedFrame, 1);
+    if (res < 0)
     {
-        // Scale and convert the decoded AVFrame to the correct format and size.
-        // Uses swscale API.
-        converted = RescaleAndConvert(
-            sourceFrame,
-            convertedFrame, 
-            mScaledSize.Width,
-            mScaledSize.Height,
-            sConvertPixelFormat, 
-            forSummary);
-    }
-    else
-    {
-        // Deinterlace, scale and convert the decoded AVFrame.
-        // Uses filter graph API.
-        converted = RescaleAndConvert2(
-            sourceFrame, 
-            convertedFrame, 
-            mScaledSize.Width,
-            mScaledSize.Height,
-            sConvertPixelFormat, 
-            mVideoGeometry->Deinterlacing);
+        LogFFMpegError("av_frame_get_buffer", res);
+        av_frame_free(&convertedFrame);
+        return ReadResult::UnknownError;
     }
 
+    // Scale (if not done already) and convert.
+    bool converted = ScaleAndConvert(
+        frameToConvert,
+        convertedFrame, 
+        mScaledSize.Width,
+        mScaledSize.Height,
+        sConvertPixelFormat, 
+        forSummary);
+    
     if (!converted)
     {
         av_frame_free(&convertedFrame);
@@ -2434,19 +2429,16 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
 }
 
 
-AVFrame* VideoReaderFFMpeg::GetSoftwareFrame(AVFrame* decodedFrame)
+AVFrame* VideoReaderFFMpeg::GetSoftwareFrame(AVFrame* hardwareFrame)
 {
-    if (decodedFrame->format != mHwPixelFormat)
-        return decodedFrame;
-
     av_frame_unref(mSoftwareFrame);
     
     // Transfer GPU -> CPU.
-    int ret = av_hwframe_transfer_data(mSoftwareFrame, decodedFrame, 0);
+    int ret = av_hwframe_transfer_data(mSoftwareFrame, hardwareFrame, 0);
     if (ret < 0)
         return nullptr;
 
-    ret = av_frame_copy_props(mSoftwareFrame, decodedFrame);
+    ret = av_frame_copy_props(mSoftwareFrame, hardwareFrame);
     if (ret < 0)
         return nullptr;
 
@@ -2483,420 +2475,57 @@ AVPixelFormat VideoReaderFFMpeg::GetSourceFormat(AVFrame* sourceFrame)
 }
 
 
-bool VideoReaderFFMpeg::RescaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat, bool forSummary)
+bool VideoReaderFFMpeg::ScaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat, bool forSummary)
 {
-    // This variant doesn't support deinterlacing and uses the sws_scale API.
-    // It is often faster than the one based on filter graph.
+    // Scale and convert using the sws_scale API.
+    // I've found this faster and simpler than the one based on filter graph.
     // By this point dstFrame is already allocated.
+    AVFrame* frameToScale = srcFrame;
+    AVFrame* bayerFrame = nullptr;
 
-    bool result = true;
     AVPixelFormat srcFormat = GetSourceFormat(srcFrame);
-
-    int flags = SWS_BILINEAR;
-    if (forSummary)
+    if (srcFormat != srcFrame->format)
     {
-        flags = SWS_POINT;
-    }
-
-    if (mScalingCtx == nullptr ||
-        mMemoSrcWidth != srcFrame->width || mMemoSrcHeight != srcFrame->height || mMemoSrcFormat != srcFormat ||
-        mMemoDstWidth != dstWidth || mMemoDstHeight != dstHeight)
-    {
-        bool created = CreateSwsContext(
-            srcFrame->width, srcFrame->height, srcFormat, 
-            dstWidth, dstHeight, dstPixelFormat, 
-            flags);
-
-        if (!created)
-        {
-            log->Error("RescaleAndConvert Error : CreateSwsContext failed.");
+        // Raw Bayer support.
+        // With the dynamic sws_scale_frame API the "contract" for the conversion is directly 
+        // taken from the source frame, not from the options in the scaling context, 
+        // so we build a clone of the source with the custom pixel format in it.
+        bayerFrame = av_frame_clone(srcFrame);
+        if (bayerFrame == nullptr)
             return false;
-        }
+
+        bayerFrame->format = srcFormat;
+        frameToScale = bayerFrame;
     }
 
-    const uint8_t* const* srcSlice = srcFrame->data;
-    int* srcStride = srcFrame->linesize;
-    int srcSliceY = 0;
-    int srcSliceH = mVideoCodecCtx->height;
-    uint8_t** dst = dstFrame->data;
-    int* dstStride = dstFrame->linesize;
+    if (mScalingCtx == nullptr)
+    {
+        mScalingCtx = sws_alloc_context();
+
+        // Configure.
+        // We don't configure the source/destination sizes and formats.
+        // 0 threads = auto-selected by ffmpeg based on the machine.
+        int flags = forSummary ? SWS_POINT : SWS_BILINEAR;
+        int threadCount = forSummary ? 1 : 0;
+        av_opt_set_int(mScalingCtx, "sws_flags", flags, 0);
+        av_opt_set_int(mScalingCtx, "threads", threadCount, 0);
+    }
 
     try
     {
+        // New "dynamic" sws_scale_frame API. Meaning the destination frame is 
+        // already allocated and ffmpeg dynamically configures the context on the fly.
+        // If we have already scaled the frame in hardware it will skip the scaling, 
+        // otherwise it will perform the scaling now.
+        // This is also what let us use multi-threading in case of software scaling.
         sws_scale_frame(mScalingCtx, dstFrame, srcFrame);
     }
     catch (Exception^)
     {
-        result = false;
         log->Error("RescaleAndConvert Error : sws_scale failed.");
-    }
-
-    return result;
-}
-
-
-bool VideoReaderFFMpeg::CreateSwsContext(
-    int srcWidth, int srcHeight, AVPixelFormat srcPixelFormat,
-    int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat, 
-    int flags)
-{
-    // There are several ways to use the sws scaling API.
-    // 1. old system, calling sws_getContext.
-    // We pass the frames geometry and it initializes the scaling context by itself,
-    // and then we call sws_scale.
-    // This never uses threading.
-    // 2. old system with manual init.
-    // We call sws_alloc_context() and then set individual options,
-    // "srcw", "srch", "src_format", "dstw", etc.
-    // Then we call sws_init_context(), and then call sws_scale.
-    // This works but setting the thread count here does nothing, it's still single-threaded.
-    // 3. using dynamic context, calling sws_scale_frame instead of sws_scale.
-    // In this case we must have already allocated and configured the destination frame.
-    // ffmpeg will automatically detect it and use its size/format.
-    // With this approach we can use manual init and set the number of threads and it works.
-    // In this case we don't even need to set the width/height or call sws_init_context at all.
-    // 4. We can also explicitly call sws_init_context. -> ffmpeg will detect that it was 
-    // manually initialized and route it through legacy frame API, this should also be multi-threaded
-    // but there is not much point to it.
-    // 
-    // We use technique 3.
-    // Just set the number of thread here, don't call sws_init_context, and call sws_scale_frame for scaling.
-    // We don't bother about source/destination geometry here, ffmpeg will setup the context automatically.
-
-
-    int threadCount = 0; // 0 = auto.
-    mScalingCtx = sws_alloc_context();
-    av_opt_set_int(mScalingCtx, "sws_flags", flags, 0);
-    av_opt_set_int(mScalingCtx, "threads", threadCount, 0);
-
-    // Auto initialization. This is always single-threaded.
-    //mScalingCtx = sws_getContext(
-    //    srcWidth, srcHeight, srcPixelFormat,
-    //    dstWidth, dstHeight, dstPixelFormat,
-    //    flags, nullptr, nullptr, nullptr);
-
-    // Remember the settings to detect if we need to recreate the context.
-    mMemoSrcWidth = srcWidth;
-    mMemoSrcHeight = srcHeight;
-    mMemoSrcFormat = srcPixelFormat;
-    mMemoDstWidth = dstWidth;
-    mMemoDstHeight = dstHeight;
-    return true;
-}
-
-
-
-bool VideoReaderFFMpeg::RescaleAndConvert2(AVFrame* srcFrame, AVFrame* dstFrame, int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat, bool deinterlace)
-{
-    int srcWidth = srcFrame->width;
-    int srcHeight = srcFrame->height;
-    const AVPixelFormat srcPixelFormat = static_cast<AVPixelFormat>(srcFrame->format);
-    
-    // Recreate the graph if needed.
-    if (!mFilterGraph || mShouldResetFilterGraph ||
-        mMemoSrcWidth != srcWidth || mMemoSrcHeight != srcHeight || mMemoSrcFormat != srcPixelFormat ||
-        mMemoDstWidth != dstWidth || mMemoDstHeight != dstHeight ||
-        mMemoDeinterlace != deinterlace)
-    {
-        AVRational sar = srcFrame->sample_aspect_ratio;
-        bool created = CreateVideoFilterGraph(
-            srcWidth, srcHeight, srcPixelFormat,
-            dstWidth, dstHeight,
-            deinterlace, sar);
-
-        if (!created)
-        {
-            log->Error("RescaleAndConvert: CreateVideoFilterGraph failed.");
-            return false;
-        }
-
-        mShouldResetFilterGraph = false;
-    }
-
-    // Feed the decoded frame to libavfilter.
-    int ret = av_buffersrc_add_frame_flags(mFilterSource, srcFrame, AV_BUFFERSRC_FLAG_KEEP_REF);
-    if (ret < 0)
-    {
-        LogFFMpegError("av_buffersrc_add_frame_flags", ret);
         return false;
     }
 
-    //-------------------------------------
-    // Retrieve the processed frame.
-    // Here we decide if we can use the AVFrame from the sink filter directly as 
-    // the result or if we make an extra copy into a preallocated destination.
-    // This is used to control the buffer alignment of the final frame.
-    // 
-    // For the copy scenario we first extract the frame into a staging AVFrame.
-    //-------------------------------------
-
-    if (mCopyFilteredFrame)
-    {
-        av_frame_unref(mFilteredFrame);
-        ret = av_buffersink_get_frame(mFilterSink, mFilteredFrame);
-    }
-    else
-    {
-        ret = av_buffersink_get_frame(mFilterSink, dstFrame);
-    }
-
-    if (ret == AVERROR(EAGAIN))
-    {
-        // This can happen when YADIF needs another input frame before it can produce this output frame.
-        log->Error("av_buffersink_get_frame returned EAGAIN.");
-        return false;
-    }
-    else if (ret < 0)
-    {
-        LogFFMpegError("av_buffersink_get_frame", ret);
-        return false;
-    }
-    
-    // Copy the filtered frame into the destination if needed.
-    // This will get rid of any padding and conform it to 
-    // the alignment of the passed destination AVFrame.
-    if (mCopyFilteredFrame)
-    {
-        ret = av_frame_make_writable(dstFrame);
-        if (ret < 0)
-        {
-            LogFFMpegError("av_frame_make_writable", ret);
-            av_frame_unref(mFilteredFrame);
-            return false;
-        }
-
-        ret = av_frame_copy(dstFrame, mFilteredFrame);
-        if (ret < 0)
-        {
-            LogFFMpegError("av_frame_copy", ret);
-            av_frame_unref(mFilteredFrame);
-            return false;
-        }
-
-        // Propagate PTS, color metadata, aspect ratio, side data, etc.
-        ret = av_frame_copy_props(dstFrame, mFilteredFrame);
-        av_frame_unref(mFilteredFrame);
-    }
-    
-    return ret >= 0;
-}
-
-
-void VideoReaderFFMpeg::FreeVideoFilterGraph()
-{
-    // Note: the member variables are on managed-heap and can be moved by the GC.
-    // The CLR is allowed to move the whole VideoReaderFFMpeg object, 
-    // and the memory of say, mFilteredFrame can change, so we can't directly pass their address.
-    // &mFilteredFrame has type interior_ptr<AVFrame*>, not AVFrame**. 
-    // We can either use a pin_ptr or a temporary variable.
-
-    if (mCopyFilteredFrame)
-    {
-        AVFrame* pFilteredFrame = mFilteredFrame;
-        av_frame_free(&pFilteredFrame);
-        mFilteredFrame = nullptr;
-    }
-
-    AVFilterGraph* pFilterGraph = mFilterGraph;
-    avfilter_graph_free(&pFilterGraph);
-    mFilterGraph = nullptr;
-
-    mFilterSource = nullptr;
-    mFilterSink = nullptr;
-
-    mMemoSrcWidth = 0;
-    mMemoSrcHeight = 0;
-    mMemoSrcFormat = AV_PIX_FMT_NONE;
-
-    mMemoDstWidth = 0;
-    mMemoDstHeight = 0;
-}
-
-
-bool VideoReaderFFMpeg::CreateVideoFilterGraph(
-    int srcWidth, int srcHeight, AVPixelFormat srcPixelFormat,
-    int dstWidth, int dstHeight,
-    bool deinterlace, AVRational sar)
-{
-    FreeVideoFilterGraph();
-
-    //----------------------------------------------------
-    // Build the following filter graph:
-    // buffer -> [yadif] -> scale -> format -> buffersink.
-    //----------------------------------------------------
-
-    const AVFilter* bufferFilter = avfilter_get_by_name("buffer");
-    const AVFilter* yadifFilter = deinterlace ? avfilter_get_by_name("yadif") : nullptr;
-    const AVFilter* scaleFilter = avfilter_get_by_name("scale");
-    const AVFilter* formatFilter = avfilter_get_by_name("format");
-    const AVFilter* bufferSinkFilter = avfilter_get_by_name("buffersink");
-
-    if (!bufferFilter || (deinterlace && !yadifFilter) || !scaleFilter || !formatFilter || !bufferSinkFilter)
-    {
-        log->Error("Failed to get one or more filters.");
-        return false;
-    }
-
-    mFilterGraph = avfilter_graph_alloc();
-    if (!mFilterGraph)
-    {
-        log->Error("Failed to allocate filter graph.");
-        return false;
-    }
-
-    //------------------------------
-    // Buffer
-    //------------------------------
-    AVRational timebase = mFormatCtx->streams[mVideoStreamIndex]->time_base;
-    if (sar.num <= 0 || sar.den <= 0)
-    {
-        sar = av_make_q(1, 1);
-    }
-
-    char args[512];
-    snprintf(args, sizeof(args), 
-        "video_size=%dx%d:pix_fmt=%d:time_base=%d/%d:pixel_aspect=%d/%d",
-        srcWidth, srcHeight, srcPixelFormat,
-        timebase.num, timebase.den,
-        sar.num, sar.den);
-
-    AVFilterContext* filterSourceCtx = nullptr;
-    int ret = avfilter_graph_create_filter(&filterSourceCtx, bufferFilter, "source", args, nullptr, mFilterGraph);
-    if (ret < 0)
-    {
-        LogFFMpegError("Failed to create buffer filter.", ret);
-        FreeVideoFilterGraph();
-        return false;
-    }
-
-    mFilterSource = filterSourceCtx;
-    AVFilterContext* previousCtx = mFilterSource;
-
-    //------------------------------
-    // Yadif (deinterlacing)
-    //------------------------------
-    if (deinterlace)
-    {
-        // Configuration
-        // One output frame per input frame rather than one per field, 
-        // automatically determine field parity, 
-        // deinterlace every frame.
-        AVFilterContext* yadifCtx = nullptr;
-        ret = avfilter_graph_create_filter(&yadifCtx, yadifFilter, "yadif", "mode=send_frame:parity=auto:deint=all", nullptr, mFilterGraph);
-        if (ret < 0)
-        {
-            LogFFMpegError("Failed to create yadif filter.", ret);
-            FreeVideoFilterGraph();
-            return false;
-        }
-
-        ret = avfilter_link(previousCtx, 0, yadifCtx, 0);
-        if (ret < 0)
-        {
-            LogFFMpegError("Failed to link yadif filter.", ret);
-            FreeVideoFilterGraph();
-            return false;
-        }
-            
-        previousCtx = yadifCtx;
-    }
-
-    //------------------------------
-    // Scaling
-    //------------------------------
-    // fast-bilinear is speed over quality, not needed for main images.
-
-    AVFilterContext* scaleCtx = nullptr;
-    snprintf(args, sizeof(args), "w=%d:h=%d:flags=bilinear", dstWidth, dstHeight);
-    ret = avfilter_graph_create_filter(&scaleCtx, scaleFilter, "scale", args, nullptr, mFilterGraph);
-    if (ret < 0)
-    {
-        LogFFMpegError("Failed to create scale filter.", ret);
-        FreeVideoFilterGraph();
-        return false;
-    }
-
-    ret = avfilter_link(previousCtx, 0, scaleCtx, 0);
-    if (ret < 0)
-    {
-        LogFFMpegError("Failed to link scale filter.", ret);
-        FreeVideoFilterGraph();
-        return false;
-    }
-
-    previousCtx = scaleCtx;
-
-    //------------------------------
-    // Pixel format conversion
-    // bgra = AV_PIX_FMT_BGRA.
-    //------------------------------
-    AVFilterContext* formatCtx = nullptr;
-    ret = avfilter_graph_create_filter(&formatCtx, formatFilter, "format", "pix_fmts=bgra", nullptr, mFilterGraph);
-    if (ret < 0)
-    {
-        LogFFMpegError("Failed to create format filter.", ret);
-        FreeVideoFilterGraph();
-        return false;
-    }
-
-    ret = avfilter_link(previousCtx, 0, formatCtx, 0);
-    if (ret < 0)
-    {
-        LogFFMpegError("Failed to link format filter.", ret);
-        FreeVideoFilterGraph();
-        return false;
-    }
-
-    previousCtx = formatCtx;
-
-    //------------------------------
-    // Buffersink
-    //------------------------------
-    AVFilterContext* filterSinkCtx = nullptr;
-    ret = avfilter_graph_create_filter(&filterSinkCtx, bufferSinkFilter, "sink", nullptr, nullptr, mFilterGraph);
-    if (ret < 0)
-    {
-        LogFFMpegError("Failed to create buffersink filter.", ret);
-        FreeVideoFilterGraph();
-        return false;
-    }
-
-    mFilterSink = filterSinkCtx;
-
-    ret = avfilter_link(previousCtx, 0, mFilterSink, 0);
-    if (ret < 0)
-    {
-        LogFFMpegError("Failed to link buffersink filter.", ret);
-        FreeVideoFilterGraph();
-        return false;
-    }
-
-    ret = avfilter_graph_config(mFilterGraph, nullptr);
-    if (ret < 0)
-    {
-        LogFFMpegError("Failed to configure filter graph.", ret);
-        FreeVideoFilterGraph();
-        return false;
-    }
-
-    if (mCopyFilteredFrame)
-    {
-        mFilteredFrame = av_frame_alloc();
-        if (!mFilteredFrame)
-        {
-            log->Error("Failed to allocate filtered frame.");
-            FreeVideoFilterGraph();
-            return false;
-        }
-    }
-    
-    // Recall the parameters so we can check if the filter graph needs to be rebuilt.
-    mMemoSrcWidth = srcWidth;
-    mMemoSrcHeight = srcHeight;
-    mMemoSrcFormat = srcPixelFormat;
-    mMemoDstWidth = dstWidth;
-    mMemoDstHeight = dstHeight;
-    mMemoDeinterlace = deinterlace;
     return true;
 }
 

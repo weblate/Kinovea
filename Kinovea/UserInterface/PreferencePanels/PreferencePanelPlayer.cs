@@ -74,6 +74,7 @@ namespace Kinovea.Root
 
         // Player
         private bool enableHardwareDecoding;
+        private bool enableHardwareScaling;
         private bool enableFrameSkipping;
         private bool loopPlayback;
         private bool showFramerateInSpeedLabel;
@@ -135,6 +136,7 @@ namespace Kinovea.Root
             
             // Player
             enableHardwareDecoding = PreferencesManager.PlayerPreferences.EnableHardwareDecoding;
+            enableHardwareScaling = PreferencesManager.PlayerPreferences.EnableHardwareScaling;
             enableFrameSkipping = PreferencesManager.PlayerPreferences.EnableFrameSkipping;
             loopPlayback = PreferencesManager.PlayerPreferences.LoopPlayback;
             interactiveFrameTracker = PreferencesManager.PlayerPreferences.InteractiveFrameTracker;
@@ -192,6 +194,7 @@ namespace Kinovea.Root
             tabPlayer.Text = "Player";
 
             chkHardwareDecoding.Text = "Enable hardware decoding";
+            chkHardwareScaling.Text = "Enable hardware scaling";
             chkEnableFrameSkipping.Text = "Allow skipping frames if there is not enough time";
             chkInteractiveTracker.Text = RootLang.dlgPreferences_Player_InteractiveFrameTracker;
             chkLockSpeeds.Text = RootLang.dlgPreferences_Player_SyncLockSpeeds;
@@ -200,6 +203,7 @@ namespace Kinovea.Root
             chkLoopPlayback.Text = "Loop playback";
 
             chkHardwareDecoding.Checked = enableHardwareDecoding;
+            chkHardwareScaling.Checked = enableHardwareScaling;
             chkEnableFrameSkipping.Checked = enableFrameSkipping;
             chkInteractiveTracker.Checked = interactiveFrameTracker;
             chkLockSpeeds.Checked = syncLockSpeeds;
@@ -317,6 +321,12 @@ namespace Kinovea.Root
         {
             enableHardwareDecoding = chkHardwareDecoding.Checked;
         }
+
+        private void chkHardwareScaling_CheckedChanged(object sender, EventArgs e)
+        {
+            enableHardwareScaling = chkHardwareScaling.Checked;
+        }
+
         private void ChkEnableFrameSkippingCheckedChanged(object sender, EventArgs e)
         {
             enableFrameSkipping = chkEnableFrameSkipping.Checked;
@@ -486,6 +496,7 @@ namespace Kinovea.Root
 
             // Player
             PreferencesManager.PlayerPreferences.EnableHardwareDecoding = enableHardwareDecoding;
+            PreferencesManager.PlayerPreferences.EnableHardwareScaling = enableHardwareScaling;
             PreferencesManager.PlayerPreferences.EnableFrameSkipping = enableFrameSkipping;
             PreferencesManager.PlayerPreferences.InteractiveFrameTracker = interactiveFrameTracker;
             PreferencesManager.PlayerPreferences.SyncLockSpeed = syncLockSpeeds;

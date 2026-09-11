@@ -59,6 +59,8 @@ namespace Kinovea.Root
       this.tabMemory = new System.Windows.Forms.TabPage();
       this.cbCacheInTimeline = new System.Windows.Forms.CheckBox();
       this.tabPlayer = new System.Windows.Forms.TabPage();
+      this.chkHardwareScaling = new System.Windows.Forms.CheckBox();
+      this.chkHardwareDecoding = new System.Windows.Forms.CheckBox();
       this.chkLoopPlayback = new System.Windows.Forms.CheckBox();
       this.chkShowFramerate = new System.Windows.Forms.CheckBox();
       this.chkInteractiveTracker = new System.Windows.Forms.CheckBox();
@@ -86,7 +88,6 @@ namespace Kinovea.Root
       this.cmbImageFormats = new System.Windows.Forms.ComboBox();
       this.lblAspectRatio = new System.Windows.Forms.Label();
       this.chkDeinterlace = new System.Windows.Forms.CheckBox();
-      this.chkHardwareDecoding = new System.Windows.Forms.CheckBox();
       ((System.ComponentModel.ISupportInitialize)(this.trkMemoryBuffer)).BeginInit();
       this.tabSubPages.SuspendLayout();
       this.tabGeneral.SuspendLayout();
@@ -224,6 +225,7 @@ namespace Kinovea.Root
       // 
       // tabPlayer
       // 
+      this.tabPlayer.Controls.Add(this.chkHardwareScaling);
       this.tabPlayer.Controls.Add(this.chkHardwareDecoding);
       this.tabPlayer.Controls.Add(this.chkLoopPlayback);
       this.tabPlayer.Controls.Add(this.chkShowFramerate);
@@ -238,11 +240,36 @@ namespace Kinovea.Root
       this.tabPlayer.Text = "Player";
       this.tabPlayer.UseVisualStyleBackColor = true;
       // 
+      // chkHardwareScaling
+      // 
+      this.chkHardwareScaling.Checked = true;
+      this.chkHardwareScaling.CheckState = System.Windows.Forms.CheckState.Checked;
+      this.chkHardwareScaling.Location = new System.Drawing.Point(18, 230);
+      this.chkHardwareScaling.Name = "chkHardwareScaling";
+      this.chkHardwareScaling.Size = new System.Drawing.Size(369, 20);
+      this.chkHardwareScaling.TabIndex = 71;
+      this.chkHardwareScaling.Text = "Enable hardware scaling";
+      this.chkHardwareScaling.UseVisualStyleBackColor = true;
+      this.chkHardwareScaling.Visible = false;
+      this.chkHardwareScaling.CheckedChanged += new System.EventHandler(this.chkHardwareScaling_CheckedChanged);
+      // 
+      // chkHardwareDecoding
+      // 
+      this.chkHardwareDecoding.Checked = true;
+      this.chkHardwareDecoding.CheckState = System.Windows.Forms.CheckState.Checked;
+      this.chkHardwareDecoding.Location = new System.Drawing.Point(18, 20);
+      this.chkHardwareDecoding.Name = "chkHardwareDecoding";
+      this.chkHardwareDecoding.Size = new System.Drawing.Size(369, 20);
+      this.chkHardwareDecoding.TabIndex = 70;
+      this.chkHardwareDecoding.Text = "Enable hardware decoding";
+      this.chkHardwareDecoding.UseVisualStyleBackColor = true;
+      this.chkHardwareDecoding.CheckedChanged += new System.EventHandler(this.chkHardwareDecoding_CheckedChanged);
+      // 
       // chkLoopPlayback
       // 
       this.chkLoopPlayback.Checked = true;
       this.chkLoopPlayback.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.chkLoopPlayback.Location = new System.Drawing.Point(18, 72);
+      this.chkLoopPlayback.Location = new System.Drawing.Point(18, 124);
       this.chkLoopPlayback.Name = "chkLoopPlayback";
       this.chkLoopPlayback.Size = new System.Drawing.Size(369, 20);
       this.chkLoopPlayback.TabIndex = 69;
@@ -252,7 +279,7 @@ namespace Kinovea.Root
       // 
       // chkShowFramerate
       // 
-      this.chkShowFramerate.Location = new System.Drawing.Point(18, 124);
+      this.chkShowFramerate.Location = new System.Drawing.Point(18, 98);
       this.chkShowFramerate.Name = "chkShowFramerate";
       this.chkShowFramerate.Size = new System.Drawing.Size(369, 20);
       this.chkShowFramerate.TabIndex = 68;
@@ -262,7 +289,7 @@ namespace Kinovea.Root
       // 
       // chkInteractiveTracker
       // 
-      this.chkInteractiveTracker.Location = new System.Drawing.Point(18, 98);
+      this.chkInteractiveTracker.Location = new System.Drawing.Point(18, 72);
       this.chkInteractiveTracker.Name = "chkInteractiveTracker";
       this.chkInteractiveTracker.Size = new System.Drawing.Size(369, 20);
       this.chkInteractiveTracker.TabIndex = 67;
@@ -552,18 +579,6 @@ namespace Kinovea.Root
       this.chkDeinterlace.UseVisualStyleBackColor = true;
       this.chkDeinterlace.CheckedChanged += new System.EventHandler(this.chkDeinterlace_CheckedChanged);
       // 
-      // chkHardwareDecoding
-      // 
-      this.chkHardwareDecoding.Checked = true;
-      this.chkHardwareDecoding.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.chkHardwareDecoding.Location = new System.Drawing.Point(18, 20);
-      this.chkHardwareDecoding.Name = "chkHardwareDecoding";
-      this.chkHardwareDecoding.Size = new System.Drawing.Size(369, 20);
-      this.chkHardwareDecoding.TabIndex = 70;
-      this.chkHardwareDecoding.Text = "Enable hardware decoding";
-      this.chkHardwareDecoding.UseVisualStyleBackColor = true;
-      this.chkHardwareDecoding.CheckedChanged += new System.EventHandler(this.chkHardwareDecoding_CheckedChanged);
-      // 
       // PreferencePanelPlayer
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -630,5 +645,6 @@ namespace Kinovea.Root
         private System.Windows.Forms.CheckBox chkShowFramerate;
         private System.Windows.Forms.CheckBox chkLoopPlayback;
         private System.Windows.Forms.CheckBox chkHardwareDecoding;
+        private System.Windows.Forms.CheckBox chkHardwareScaling;
     }
 }

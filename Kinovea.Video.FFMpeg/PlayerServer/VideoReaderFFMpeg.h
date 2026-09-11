@@ -364,12 +364,7 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         //------------------------
         // Scale/convert
         //------------------------
-         
-        // FFmpeg filter graph for scaling/converting the decoded frame to its final form.
-        AVFilterGraph* mFilterGraph = nullptr;
-        AVFilterContext* mFilterSource = nullptr;
-        AVFilterContext* mFilterSink = nullptr;
-        AVFrame* mFilteredFrame = nullptr;
+        
         AVFrame* mSoftwareFrame = nullptr;
         static bool mCopyFilteredFrame = true;
 
@@ -381,6 +376,7 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         int mMemoDstHeight = 0;
         bool mMemoDeinterlace = false;
         bool mShouldResetFilterGraph;
+
 
         //------------------------
         // Debugging
@@ -482,31 +478,10 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         /// dstFrame must already be allocated.
         /// Uses the old swscale pipeline.
         /// This variant does not support deinterlacing.
-        bool RescaleAndConvert(
+        bool ScaleAndConvert(
             AVFrame* srcFrame, AVFrame* dstFrame, 
             int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat,
             bool forSummary);
-
-
-        bool CreateSwsContext(
-            int srcWidth, int srcHeight, AVPixelFormat srcPixelFormat,
-            int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat,
-            int flags);
-
-        /// Convert and scale the decoded frame to the final pixel format and size.
-        /// dstFrame must already be allocated.
-        /// Uses the new filter graph pipeline.
-        bool RescaleAndConvert2(AVFrame* srcFrame, AVFrame* dstFrame, int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat, bool deinterlace);
-        
-        /// Create the filter graph.
-        /// buffer -> [yadif] -> scale -> format -> buffersink.
-        /// Should only be called when the parameters change.
-        bool CreateVideoFilterGraph(
-            int srcWidth, int srcHeight, AVPixelFormat srcPixelFormat,
-            int dstWidth, int dstHeight,
-            bool deinterlace, AVRational sar);
-
-        void FreeVideoFilterGraph();
 
         /// Get the source format of decoded frames.
         /// This is just frame->format unless the user has specified a demosaicing option.
