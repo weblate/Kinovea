@@ -354,143 +354,49 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
     // Video stream.
     AVStream* videoStream = formatCtx->streams[mVideoStreamIndex];
 
-    // Find, allocate and open the video codec context.
+    //-----------------------------------------------------
+    // Find, allocate and open the decoder / codec context.
+    //-----------------------------------------------------
     AVCodecID videoCodecId = videoStream->codecpar->codec_id;
-    const AVCodec* videoCodec = avcodec_find_decoder(videoCodecId);
-    if (videoCodec == nullptr)
+    AVCodecContext* videoCodecCtx = nullptr;
+    bool initializedDecoder = false;
+    bool allowHardwareDecoding = PreferencesManager::PlayerPreferences->EnableHardwareDecoding;
+    if (!forSummary && allowHardwareDecoding)
     {
-        log->Error("Video decoder not found.");
-        return OpenVideoResult::CodecNotFound;
+        initializedDecoder = TryInitializeHardwareDecoder(videoCodecId, videoStream, videoCodecCtx);
     }
 
-    AVCodecContext* videoCodecCtx = avcodec_alloc_context3(videoCodec);
-    if (videoCodecCtx == nullptr)
+    if (!initializedDecoder)
     {
-        log->Error("Video codec context allocation failed.");
-        return OpenVideoResult::CodecNotOpened;
-    }
-
-    res = avcodec_parameters_to_context(videoCodecCtx, videoStream->codecpar);
-    if (res < 0)
-    {
-        log->ErrorFormat("avcodec_parameters_to_context failed. Error: {0}", res);
-        return OpenVideoResult::CodecNotOpened;
+        result = InitSoftwareDecoder(videoCodecId, videoStream, forSummary, videoCodecCtx);
+        if (result != OpenVideoResult::Success)
+        {
+            return result;
+        }
     }
 
     //-----------------------------------------------------
     // Collect image size and rotation
     //-----------------------------------------------------
-    mOriginalSize = Size(videoCodecCtx->width, videoCodecCtx->height);
-    mVideoInfo.OriginalSize = mOriginalSize;
-    mVideoInfo.OriginalRotation = ImageRotation::Rotate0;
-    const AVPacketSideData* displaymatrix = av_packet_side_data_get(videoStream->codecpar->coded_side_data, videoStream->codecpar->nb_coded_side_data, AV_PKT_DATA_DISPLAYMATRIX);
-    if (displaymatrix)
     {
-        // Get rotation as a double in [-180..+180].
-        double rotation = Math::Round(av_display_rotation_get((const int32_t*)displaymatrix->data));
-        // Map to 0..360 range.
-        // Ignore rotations that aren't multiples of 90.
-        rotation = ((int)-rotation + 360) % 360;
-        if (rotation == 90)
-            mVideoInfo.OriginalRotation = ImageRotation::Rotate90;
-        else if (rotation == 180)
-            mVideoInfo.OriginalRotation = ImageRotation::Rotate180;
-        else if (rotation == 270)
-            mVideoInfo.OriginalRotation = ImageRotation::Rotate270;
-    }
-
-    //-----------------------------------------------------
-    // Configure codec
-    //-----------------------------------------------------
-    if (forSummary)
-    {
-        // Bypass deblocking/loop filter.
-        videoCodecCtx->skip_loop_filter = AVDISCARD_ALL;
-        //videoCodecCtx->skip_frame = AVDISCARD_NONKEY;
-    }
-    else
-    {
-        // Try hardware setup as first priority.
-        // Look for hardware configurations supported by this codec.
-        for (int i = 0; ; i++)
+        mOriginalSize = Size(videoCodecCtx->width, videoCodecCtx->height);
+        mVideoInfo.OriginalSize = mOriginalSize;
+        mVideoInfo.OriginalRotation = ImageRotation::Rotate0;
+        const AVPacketSideData* displaymatrix = av_packet_side_data_get(videoStream->codecpar->coded_side_data, videoStream->codecpar->nb_coded_side_data, AV_PKT_DATA_DISPLAYMATRIX);
+        if (displaymatrix)
         {
-            const AVCodecHWConfig* config = avcodec_get_hw_config(videoCodec, i);
-            if (config == nullptr)
-                break;
-
-            if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) &&
-                config->device_type == AV_HWDEVICE_TYPE_D3D11VA)
-            {
-                // This should be AV_PIX_FMT_D3D11.
-                mHwPixelFormat = config->pix_fmt;
-                break;
-            }
+            // Get rotation as a double in [-180..+180].
+            double rotation = Math::Round(av_display_rotation_get((const int32_t*)displaymatrix->data));
+            // Map to 0..360 range.
+            // Ignore rotations that aren't multiples of 90.
+            rotation = ((int)-rotation + 360) % 360;
+            if (rotation == 90)
+                mVideoInfo.OriginalRotation = ImageRotation::Rotate90;
+            else if (rotation == 180)
+                mVideoInfo.OriginalRotation = ImageRotation::Rotate180;
+            else if (rotation == 270)
+                mVideoInfo.OriginalRotation = ImageRotation::Rotate270;
         }
-
-        bool hardwareRequested = false;
-        bool allowHardwareDecoding = PreferencesManager::PlayerPreferences->EnableHardwareDecoding;
-        if (allowHardwareDecoding && mHwPixelFormat != AV_PIX_FMT_NONE)
-        {
-            // Create a hardware device context and attach it to the codec context.
-            AVBufferRef* hwDeviceContext = nullptr;
-            int ret = av_hwdevice_ctx_create(
-                &hwDeviceContext,
-                AV_HWDEVICE_TYPE_D3D11VA,
-                nullptr,    // default adapter
-                nullptr,
-                0);
-
-            if (ret >= 0)
-            {
-                mHwDeviceContext = hwDeviceContext;
-
-                // Wrap the hardware pixel format in a native struct that we store 
-                // in the codec opaque field. This is then used in the native callback 
-                // to match that format in the list of formats supported by the decoder.
-                mHardwareDecodeState = new HardwareDecodeState();
-                mHardwareDecodeState->PixelFormat = mHwPixelFormat;
-                videoCodecCtx->opaque = mHardwareDecodeState;
-
-                // Set the native function as callback.
-                videoCodecCtx->get_format = &GetHardwareFormat;
-                videoCodecCtx->hw_device_ctx = av_buffer_ref(mHwDeviceContext);
-
-                hardwareRequested = videoCodecCtx->hw_device_ctx != nullptr;
-
-                mSoftwareFrame = av_frame_alloc();
-            }
-        }
-
-        // Otherwise try to enable multithreaded software decoding.
-        if (!hardwareRequested)
-        {
-            // This increases the buffering in the decoder so we only do this 
-            // for actual playback not for summary where we only do seeking.
-            videoCodecCtx->thread_count = 0;
-            if (videoCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS)
-            {
-                videoCodecCtx->thread_type = FF_THREAD_FRAME;
-            }
-            else if (videoCodec->capabilities & AV_CODEC_CAP_SLICE_THREADS)
-            {
-                videoCodecCtx->thread_type = FF_THREAD_SLICE;
-            }
-            else
-            {
-                // Do not force thread count to 1 here.
-                // ffmpeg will pass the value to the decoder and the decoder 
-                // will decide by itself, this is relevant for decoders 
-                // implement via external libraries like libdav1d.
-                videoCodecCtx->thread_count = 0;
-            }
-        }
-    }
-    
-    res = avcodec_open2(videoCodecCtx, videoCodec, nullptr);
-    if (res < 0) 
-    {
-        log->ErrorFormat("Codec could not be openned. Error: {0}", res);
-        return OpenVideoResult::CodecNotOpened;
     }
 
     //-----------------------------------------------------
@@ -554,14 +460,12 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
     mWorkingZone = VideoSection(mVideoInfo.FirstTimeStamp, lastTimestamp);
 
     //-------------------------------
-    // Remember if the codec is MPEG2. 
-    // We use this to detect a specific behavior related to sample aspect ratio.
-    mVideoInfo.IsCodecMpeg2 = (videoCodecId == AV_CODEC_ID_MPEG2VIDEO);
-
+    // Detect a specific behavior related to sample aspect ratio.
+    bool isCodecMpeg2 = (videoCodecId == AV_CODEC_ID_MPEG2VIDEO);
     if (videoCodecCtx->sample_aspect_ratio.num != 0 && videoCodecCtx->sample_aspect_ratio.num != videoCodecCtx->sample_aspect_ratio.den)
     {
         // Anamorphic video, non square pixels.
-        if (mVideoInfo.IsCodecMpeg2)
+        if (isCodecMpeg2)
         {
             // If MPEG, sample_aspect_ratio is actually the display aspect ratio.
             // Reference for weird decision tree: mpeg12.c at mpeg_decode_postinit().
@@ -639,6 +543,222 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
     {
         LogVideoGeometry(mVideoGeometry);
     }
+
+    return OpenVideoResult::Success;
+}
+
+
+bool VideoReaderFFMpeg::TryInitializeHardwareDecoder(AVCodecID codecId, const AVStream* videoStream, AVCodecContext*& videoCodecCtx)
+{
+    // Look for a hardware decoder that supports the requested codec and device type.
+    // Sometimes calling avcodec_find_decoder(videoCodecId) will return a software-based decoder
+    // even if a hardware decoder is available (ex: AV1).
+    void* opaque = nullptr;
+    const AVCodec* videoCodec = nullptr;
+
+    const char* name = avcodec_get_name(codecId);
+    String^ codecName = gcnew String(name);
+
+    // For now we only look for D3D11 hardware decoding.
+    AVHWDeviceType deviceType = AV_HWDEVICE_TYPE_D3D11VA;
+    String^ deviceTypeName = gcnew String(av_hwdevice_get_type_name(deviceType));
+    while ((videoCodec = av_codec_iterate(&opaque)) != nullptr)
+    {
+        if (!av_codec_is_decoder(videoCodec))
+            continue;
+
+        if (videoCodec->id != codecId)
+            continue;
+
+        String^ decoderName = gcnew String(videoCodec->name);
+        log->DebugFormat("Found decoder \"{0}\" for codec \"{1}\".", decoderName, codecName);
+
+        for (int i = 0; ; i++)
+        {
+            const AVCodecHWConfig* config = avcodec_get_hw_config(videoCodec, i);
+            if (config == nullptr)
+            {
+                //log->DebugFormat("No more hardware configurations for decoder \"{0}\".", decoderName);
+                break;
+            }
+
+            //log->DebugFormat("Decoder \"{0}\" supports device type \"{1}\" with pixel format \"{2}\".",
+            //    decoderName, 
+            //    gcnew String(av_hwdevice_get_type_name(config->device_type)), 
+            //    GetPixelFormatString(config->pix_fmt));
+
+            if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) && config->device_type == deviceType)
+            {
+                log->DebugFormat("Found hardware decoder \"{0}\" with device type \"{1}\" and pixel format \"{2}\".",
+                    decoderName,
+                    deviceTypeName,
+                    GetPixelFormatString(config->pix_fmt));
+
+                mHwPixelFormat = config->pix_fmt;
+                break;
+            }
+        }
+
+        if (mHwPixelFormat != AV_PIX_FMT_NONE)
+            break;
+    }
+
+    if (mHwPixelFormat == AV_PIX_FMT_NONE)
+    {
+        log->DebugFormat("No hardware decoder found for codec \"{0}\" and device type \"{1}\".", 
+            codecName, deviceTypeName);
+        return false;
+    }
+
+    videoCodecCtx = avcodec_alloc_context3(videoCodec);
+    if (videoCodecCtx == nullptr)
+    {
+        log->Error("Video codec context allocation failed.");
+        return false;
+    }
+
+    int res = avcodec_parameters_to_context(videoCodecCtx, videoStream->codecpar);
+    if (res < 0)
+    {
+        LogFFMpegError("avcodec_parameters_to_context.", res);
+        return false;
+    }
+
+    AVBufferRef* pHwDeviceContext = nullptr;
+    res = av_hwdevice_ctx_create(
+        &pHwDeviceContext,
+        AV_HWDEVICE_TYPE_D3D11VA,
+        nullptr,    // default adapter
+        nullptr,
+        0);
+
+    if (res < 0)
+    {
+        LogFFMpegError("av_hwdevice_ctx_create.", res);
+        return false;
+    }
+
+    mHwDeviceContext = pHwDeviceContext;
+
+    // Hardware decoders typically support multiple hardware pixel formats, 
+    // so ffmpeg will call us back to select the one we want.
+    // Wrap the hardware pixel format we found in a native struct that we store 
+    // in the codec opaque field. When we get the call back we'll use it to match
+    // the format in the list of formats supported by the decoder.
+    mHardwareDecodeState = new HardwareDecodeState();
+    mHardwareDecodeState->PixelFormat = mHwPixelFormat;
+    videoCodecCtx->opaque = mHardwareDecodeState;
+
+    // Set the callback (native function).
+    videoCodecCtx->get_format = &GetHardwareFormat;
+
+    videoCodecCtx->hw_device_ctx = av_buffer_ref(mHwDeviceContext);
+    if (videoCodecCtx->hw_device_ctx == nullptr)
+    {
+        CleanupHardwareDecoderContext(videoCodecCtx);
+        return false;
+    }
+
+    res = avcodec_open2(videoCodecCtx, videoCodec, nullptr);
+    if (res < 0)
+    {
+        LogFFMpegError("Codec could not be openned.", res);
+        CleanupHardwareDecoderContext(videoCodecCtx);
+        return false;
+    }
+
+    mSoftwareFrame = av_frame_alloc();
+
+    log->DebugFormat("Hardware decoder initialized for codec \"{0}\".", codecName);
+
+    return true;
+}
+
+
+void VideoReaderFFMpeg::CleanupHardwareDecoderContext(AVCodecContext*& videoCodecCtx)
+{
+    avcodec_free_context(&videoCodecCtx);
+
+    if (mHardwareDecodeState != nullptr)
+    {
+        delete mHardwareDecodeState;
+        mHardwareDecodeState = nullptr;
+    }
+    
+    if (mHwDeviceContext != nullptr)
+    {
+        AVBufferRef* pHwDeviceContext = mHwDeviceContext;
+        av_buffer_unref(&pHwDeviceContext);
+        mHwDeviceContext = nullptr;
+    }
+}
+
+
+OpenVideoResult VideoReaderFFMpeg::InitSoftwareDecoder(
+    AVCodecID codecId, 
+    const AVStream* videoStream, 
+    bool forSummary, 
+    AVCodecContext*& videoCodecCtx)
+{
+    const AVCodec* videoCodec = avcodec_find_decoder(codecId);
+    if (videoCodec == nullptr)
+    {
+        log->Error("Video decoder not found.");
+        return OpenVideoResult::CodecNotFound;
+    }
+
+    videoCodecCtx = avcodec_alloc_context3(videoCodec);
+    if (videoCodecCtx == nullptr)
+    {
+        log->Error("Video codec context allocation failed.");
+        return OpenVideoResult::CodecNotOpened;
+    }
+
+    int res = avcodec_parameters_to_context(videoCodecCtx, videoStream->codecpar);
+    if (res < 0)
+    {
+        LogFFMpegError("avcodec_parameters_to_context.", res);
+        return OpenVideoResult::CodecNotOpened;
+    }
+
+    // For software codecs try to enable multithreading.
+    // This increases the buffering in the decoder so don't do it for summary.
+    // Summary extraction only does seeking anyway.
+    if (forSummary)
+    {
+        // Bypass deblocking/loop filter.
+        videoCodecCtx->skip_loop_filter = AVDISCARD_ALL;
+        //videoCodecCtx->skip_frame = AVDISCARD_NONKEY;
+    }
+    else
+    {
+        videoCodecCtx->thread_count = 0;
+        if (videoCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS)
+        {
+            videoCodecCtx->thread_type = FF_THREAD_FRAME;
+        }
+        else if (videoCodec->capabilities & AV_CODEC_CAP_SLICE_THREADS)
+        {
+            videoCodecCtx->thread_type = FF_THREAD_SLICE;
+        }
+        else
+        {
+            // Do not force thread count to 1 here.
+            // ffmpeg will pass the value to the decoder and with 0 
+            // the decoder will decide by itself, this is relevant for decoders 
+            // implement via external libraries like libdav1d.
+            videoCodecCtx->thread_count = 0;
+        }
+    }
+
+    res = avcodec_open2(videoCodecCtx, videoCodec, nullptr);
+    if (res < 0)
+    {
+        LogFFMpegError("Codec could not be openned.", res);
+        return OpenVideoResult::CodecNotOpened;
+    }
+
+    log->DebugFormat("Software decoder initialized for codec \"{0}\".", gcnew String(videoCodec->name));
 
     return OpenVideoResult::Success;
 }
@@ -3695,20 +3815,19 @@ void VideoReaderFFMpeg::LogFileInfo()
     log->DebugFormat("[Stream] - Average timestamps per seconds: {0}", mVideoInfo.AverageTimeStampsPerSeconds);
 
     // Codec
-    log->DebugFormat("[Codec] - Id:{0}, Name: {1}, Long name:{2}", 
-        (int)mVideoCodecCtx->codec_id, 
+    log->DebugFormat("[Codec] - Name: \"{0}\" (\"{1}\")", 
         gcnew String(mVideoCodecCtx->codec->name),
         gcnew String(mVideoCodecCtx->codec->long_name));
 
     log->DebugFormat("[Codec] - TimeBase: {0}/{1}", mVideoCodecCtx->time_base.num, mVideoCodecCtx->time_base.den);
-    log->DebugFormat("[Codec] - Bit rate: {0} bit/s", mVideoCodecCtx->bit_rate);
+    log->DebugFormat("[Codec] - Bit rate: {0:0.00} Mbit/s", mVideoCodecCtx->bit_rate / 1e6);
     log->DebugFormat("[Codec] - Has B Frames: {0}", mVideoCodecCtx->has_b_frames ? "Yes" : "No");
     log->DebugFormat("[Codec] - Image size: {0}x{1} px", mVideoCodecCtx->width, mVideoCodecCtx->height);
     log->DebugFormat("[Codec] - Image rotation: {0}", mVideoInfo.OriginalRotation.ToString());
     log->DebugFormat("[Codec] - Hardware decoding: {0}", mHwPixelFormat == AV_PIX_FMT_NONE ? "Not supported" : "Supported");
     if (mHwPixelFormat != AV_PIX_FMT_NONE)
     {
-        log->DebugFormat("[Codec] - Hardware pixel format: {0}", GetFrameFormatString(mHwPixelFormat));
+        log->DebugFormat("[Codec] - Hardware pixel format: {0}", GetPixelFormatString(mHwPixelFormat));
     }
     else
     {
@@ -3741,7 +3860,7 @@ void VideoReaderFFMpeg::LogFrameInfo(AVFrame* frame)
 {
     log->DebugFormat("Frame info. Type:{0}, Format:{1}, PTS:{2}, Packet DTS:{3}, BETS:{4}, Dur:{5}, Flags:{6}, Size:{7}x{8} px.",
         GetFrameTypeString(frame->pict_type),
-        GetFrameFormatString((AVPixelFormat)frame->format),
+        GetPixelFormatString((AVPixelFormat)frame->format),
         frame->pts,
         frame->pkt_dts,
         frame->best_effort_timestamp,
@@ -3833,7 +3952,7 @@ String^ VideoReaderFFMpeg::GetFrameTypeString(int type)
     }
 }
 
-String^ VideoReaderFFMpeg::GetFrameFormatString(AVPixelFormat format)
+String^ VideoReaderFFMpeg::GetPixelFormatString(AVPixelFormat format)
 {
     // Use libav api to get a string representation of the pixel format.
     //char buffer[128];

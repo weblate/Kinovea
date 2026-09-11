@@ -403,9 +403,16 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         /// Load the video file and initialize the FFMpeg context.
         OpenVideoResult Load(String^ filePath, bool forSummary);
         
+        OpenVideoResult InitSoftwareDecoder(AVCodecID codecId, const AVStream* videoStream, bool forSummary, AVCodecContext*& videoCodecCtx);
+
+        bool TryInitializeHardwareDecoder(AVCodecID codecId, const AVStream* videoStream, AVCodecContext*& videoCodecCtx);
+        
+        void CleanupHardwareDecoderContext(AVCodecContext*& videoCodecCtx);
+
         /// Estimate the frame rate of the video stream.
         /// Updates mVideoInfo.FramesPerSeconds.
         void GuessFrameRate(AVFormatContext* formatCtx, AVCodecContext* videoCodecCtx, int streamIndex, bool verbose);
+
 
         //-------------------
         // Navigation / player demands
@@ -604,6 +611,6 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         static void LogStreamList(AVFormatContext* formatCtx);
         static void LogVideoGeometry(VideoGeometry^ geometry);
         static String^ GetFrameTypeString(int type);
-        static String^ GetFrameFormatString(AVPixelFormat format);
+        static String^ GetPixelFormatString(AVPixelFormat format);
     };
 }}}
