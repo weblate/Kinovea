@@ -528,49 +528,26 @@ namespace Kinovea.Services
         /// <summary>
         /// Retrieves a string suitable for FFMpeg av_guess_format function in the context of capture.
         /// </summary>
-        public static string GetFormatStringCapture(bool uncompressed)
+        public static string GetFormatStringCapture(bool isRawVideo)
         {
-            if (uncompressed)
+            // MP4 doesn't support raw video, so in that case we fall back to MKV.
+            switch (PreferencesManager.CapturePreferences.CapturePathConfiguration.VideoFormat)
             {
-                switch (PreferencesManager.CapturePreferences.CapturePathConfiguration.UncompressedVideoFormat)
-                {
-                    case KinoveaUncompressedVideoFormat.AVI: return "avi";
-                    case KinoveaUncompressedVideoFormat.MKV:
-                    default: return "matroska";
-                }
-            }
-            else
-            {
-                switch (PreferencesManager.CapturePreferences.CapturePathConfiguration.VideoFormat)
-                {
-                    case VideoContainer.MKV: return "matroska";
-                    case VideoContainer.AVI: return "avi";
-                    case VideoContainer.MP4:
-                    default: return "mp4";
-                }
+                case VideoContainer.MKV: return "matroska";
+                case VideoContainer.AVI: return "avi";
+                case VideoContainer.MP4: return isRawVideo ? "matroska" : "mp4";
+                default: return "mp4";
             }
         }
 
-        public static string GetCaptureVideoExtension(bool uncompressed)
+        public static string GetCaptureVideoExtension(bool isRawVideo)
         {
-            if (uncompressed)
+            switch (PreferencesManager.CapturePreferences.CapturePathConfiguration.VideoFormat)
             {
-                switch (PreferencesManager.CapturePreferences.CapturePathConfiguration.UncompressedVideoFormat)
-                {
-                    case KinoveaUncompressedVideoFormat.AVI: return ".avi";
-                    case KinoveaUncompressedVideoFormat.MKV:
-                    default: return ".mkv";
-                }
-            }
-            else
-            {
-                switch (PreferencesManager.CapturePreferences.CapturePathConfiguration.VideoFormat)
-                {
-                    case VideoContainer.MKV: return ".mkv";
-                    case VideoContainer.AVI: return ".avi";
-                    case VideoContainer.MP4:
-                    default: return ".mp4";
-                }
+                case VideoContainer.MKV: return ".mkv";
+                case VideoContainer.AVI: return ".avi";
+                case VideoContainer.MP4: return isRawVideo ? ".mkv" : ".mp4";
+                default: return ".mp4";
             }
         }
 

@@ -57,8 +57,9 @@ namespace Kinovea.ScreenManager
 
             writer = new MJPEGWriter();
 
-            EncodingQuality quality = PreferencesManager.CapturePreferences.EncodingQuality;
-            bool uncompressed = PreferencesManager.CapturePreferences.SaveUncompressedVideo && imageDescriptor.Format != ImageFormat.JPEG;
+            EncodingQuality quality = PreferencesManager.CapturePreferences.CapturePathConfiguration.EncodingQuality;
+            CaptureCodec codec = PreferencesManager.CapturePreferences.CapturePathConfiguration.CaptureCodec;
+            bool uncompressed = codec == CaptureCodec.RAW && imageDescriptor.Format != ImageFormat.JPEG;
             double fileInterval = CalibrationHelper.ApplyFrameRateReplacement(interval);
 
             log.DebugFormat("Frame budget for writer [{0}]: {1:0.000} ms.", shortId, interval);

@@ -1498,8 +1498,9 @@ namespace Kinovea.ScreenManager
                     // Because this function is called to create the tooltip of the capture folder combo,
                     // the image descriptor may not be ready yet. In this case we don't build an accurate file path.
                     // This has no impact on the actual file we record as we re-evaluate the extension at that time.
+                    var codec = PreferencesManager.CapturePreferences.CapturePathConfiguration.CaptureCodec;
                     bool uncompressed = 
-                            PreferencesManager.CapturePreferences.SaveUncompressedVideo &&
+                            codec == CaptureCodec.RAW &&
                             imageDescriptor != null && 
                             imageDescriptor != ImageDescriptor.Invalid &&
                             imageDescriptor.Format != Services.ImageFormat.JPEG;
@@ -1692,7 +1693,8 @@ namespace Kinovea.ScreenManager
                 return;
 
             // Interpolate the filename variables with the current context.
-            bool uncompressed = PreferencesManager.CapturePreferences.SaveUncompressedVideo && imageDescriptor.Format != Kinovea.Services.ImageFormat.JPEG;
+            CaptureCodec codec = PreferencesManager.CapturePreferences.CapturePathConfiguration.CaptureCodec;
+            bool uncompressed = codec == CaptureCodec.RAW && imageDescriptor.Format != Kinovea.Services.ImageFormat.JPEG;
             string path = BuildRecordingPath(true);
             if (string.IsNullOrEmpty(path))
             {
@@ -1742,11 +1744,11 @@ namespace Kinovea.ScreenManager
 
             log.DebugFormat("--------------------------------------------------");
             log.DebugFormat("Ready to start recording.");
-            log.DebugFormat("Recording mode: {0}, Compression: {1}. Image size: {2}x{3} px. Rotation: {4}",
+            log.DebugFormat("Recording mode: {0}, Codec: {1}. Image size: {2}x{3} px. Rotation: {4}",
                 recordingMode, 
-                !PreferencesManager.CapturePreferences.SaveUncompressedVideo, 
+                PreferencesManager.CapturePreferences.CapturePathConfiguration.CaptureCodec.ToString(), 
                 imageDescriptor.Width, 
-                imageDescriptor.Height, 
+                imageDescriptor.Height,
                 ImageRotation);
 
             log.DebugFormat("Nominal framerate: {0:0.###} fps, Received framerate: {1:0.###} fps, Display framerate: {2:0.###} fps.", 
@@ -1851,7 +1853,8 @@ namespace Kinovea.ScreenManager
                 recording = false;
                 float recordingSeconds = stopwatchRecording.ElapsedMilliseconds / 1000.0f;
                 Disconnect();
-                bool uncompressed = PreferencesManager.CapturePreferences.SaveUncompressedVideo && imageDescriptor.Format != Kinovea.Services.ImageFormat.JPEG;
+                CaptureCodec codec = PreferencesManager.CapturePreferences.CapturePathConfiguration.CaptureCodec;
+                bool uncompressed = codec == CaptureCodec.RAW && imageDescriptor.Format != Kinovea.Services.ImageFormat.JPEG;
                 SaveBuffer(finalFilename, uncompressed, forcedStop, recordingSeconds);
                 Connect();
 
@@ -1968,7 +1971,7 @@ namespace Kinovea.ScreenManager
             double interval = 1000.0 / framerate;
             double fileInterval = CalibrationHelper.ApplyFrameRateReplacement(interval);
 
-            EncodingQuality quality = PreferencesManager.CapturePreferences.EncodingQuality;
+            EncodingQuality quality = PreferencesManager.CapturePreferences.CapturePathConfiguration.EncodingQuality;
 
             RecordingSettings settings = new RecordingSettings();
             settings.FilePath = path;

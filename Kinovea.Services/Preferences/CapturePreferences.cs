@@ -67,16 +67,6 @@ namespace Kinovea.Services
             get { BeforeRead(); return photofinishConfiguration; }
             set { photofinishConfiguration = value; Save(); }
         }
-        public bool SaveUncompressedVideo
-        {
-            get { BeforeRead(); return saveUncompressedVideo; }
-            set { saveUncompressedVideo = value; Save(); }
-        }
-        public EncodingQuality EncodingQuality
-        {
-            get { BeforeRead(); return encodingQuality; }
-            set { encodingQuality = value; Save(); }
-        }
         public CaptureAutomationConfiguration CaptureAutomationConfiguration
         {
             get { BeforeRead(); return captureAutomationConfiguration; }

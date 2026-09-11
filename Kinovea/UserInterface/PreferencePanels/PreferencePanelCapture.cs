@@ -65,7 +65,7 @@ namespace Kinovea.Root
         };
         
         // General
-        private bool saveUncompressedVideo;
+        // Other fields are in CapturePathConfiguration object.
         private double displaySynchronizationFramerate;
         private string captureKVA;
 
@@ -150,7 +150,6 @@ namespace Kinovea.Root
         private void ImportPreferences()
         {
             // General
-            saveUncompressedVideo = PreferencesManager.CapturePreferences.SaveUncompressedVideo;
             displaySynchronizationFramerate = PreferencesManager.CapturePreferences.DisplaySynchronizationFramerate;
             captureKVA = PreferencesManager.CapturePreferences.CaptureKVA;
             
@@ -206,31 +205,41 @@ namespace Kinovea.Root
         private void InitTabGeneral()
         {
             tabGeneral.Text = RootLang.dlgPreferences_tabGeneral;
+            
+            lblFramerate.Text = RootLang.dlgPreferences_Capture_lblForcedFramerate;
+            tbFramerate.Text = string.Format("{0:0.###}", displaySynchronizationFramerate);
+
+            lblCaptureKVA.Text = RootLang.dlgPreferences_Player_DefaultKVA;
+            tbCaptureKVA.Text = captureKVA;
 
             lblImageFormat.Text = RootLang.dlgPreferences_Capture_lblImageFormat;
             cmbImageFormat.Items.Add("JPG");
             cmbImageFormat.Items.Add("PNG");
             cmbImageFormat.Items.Add("BMP");
             int imageFormat = (int)capturePathConfiguration.ImageFormat;
-            cmbImageFormat.SelectedIndex = ((int)imageFormat < cmbImageFormat.Items.Count) ? (int)imageFormat : 0;
+            cmbImageFormat.SelectedIndex = imageFormat < cmbImageFormat.Items.Count ? imageFormat : 0;
 
             lblVideoFormat.Text = RootLang.dlgPreferences_Capture_lblVideoFormat;
             cmbVideoFormat.Items.Add("MP4");
             cmbVideoFormat.Items.Add("MKV");
             cmbVideoFormat.Items.Add("AVI");
             int videoFormat = (int)capturePathConfiguration.VideoFormat;
-            cmbVideoFormat.SelectedIndex = ((int)videoFormat < cmbVideoFormat.Items.Count) ? (int)videoFormat : 0;
+            cmbVideoFormat.SelectedIndex = videoFormat < cmbVideoFormat.Items.Count ? videoFormat : 0;
 
-            lblUncompressedVideoFormat.Text = RootLang.dlgPreferences_Capture_lblUncompressedVideoFormat;
-            cmbUncompressedVideoFormat.Items.Add("MKV");
-            cmbUncompressedVideoFormat.Items.Add("AVI");
-            int uncompressedVideoFormat = (int)capturePathConfiguration.UncompressedVideoFormat;
-            cmbUncompressedVideoFormat.SelectedIndex = ((int)uncompressedVideoFormat < cmbUncompressedVideoFormat.Items.Count) ? (int)uncompressedVideoFormat : 0;
+            lblCodec.Text = "Video codec:";
+            cmbVideoCodec.Items.Add("MJPEG");
+            cmbVideoCodec.Items.Add("Raw video");
+            int videoCodec = (int)capturePathConfiguration.CaptureCodec;
+            cmbVideoCodec.SelectedIndex = videoCodec < cmbVideoCodec.Items.Count ? videoCodec : 0;
 
-            lblFramerate.Text = RootLang.dlgPreferences_Capture_lblForcedFramerate;
-            tbFramerate.Text = string.Format("{0:0.###}", displaySynchronizationFramerate);
-            lblCaptureKVA.Text = RootLang.dlgPreferences_Player_DefaultKVA;
-            tbCaptureKVA.Text = captureKVA;
+            lblEncodingQuality.Text = "MJPEG encoding quality:";
+            cmbEncodingQuality.Items.Add("Perceptually lossless");
+            cmbEncodingQuality.Items.Add("High");
+            cmbEncodingQuality.Items.Add("Good");
+            cmbEncodingQuality.Items.Add("Medium");
+            int encodingQuality = (int)capturePathConfiguration.EncodingQuality;
+            cmbEncodingQuality.SelectedIndex = encodingQuality < cmbEncodingQuality.Items.Count ? encodingQuality : 0;
+
         }
 
         private void InitTabMemory()
@@ -253,12 +262,10 @@ namespace Kinovea.Root
             rbRecordingCamera.Text = RootLang.dlgPreferences_Capture_RecordingMode_Camera;
             rbRecordingDelayed.Text = RootLang.dlgPreferences_Capture_RecordingMode_Display;
             rbRecordingScheduled.Text = RootLang.dlgPreferences_Capture_RecordingMode_Scheduled;
-            chkUncompressedVideo.Text = RootLang.dlgPreferences_Capture_chkUncompressedVideo;
 
             rbRecordingCamera.Checked = recordingMode == CaptureRecordingMode.Camera;
             rbRecordingDelayed.Checked = recordingMode == CaptureRecordingMode.Delay;
             rbRecordingScheduled.Checked = recordingMode == CaptureRecordingMode.Scheduled;
-            chkUncompressedVideo.Checked = saveUncompressedVideo;
 
             gbHighspeedCameras.Text = RootLang.dlgPreferences_Capture_gbHighspeedCameras;
             lblReplacementThreshold.Text = RootLang.dlgPreferences_Capture_lblReplacementThreshold;
@@ -397,22 +404,10 @@ namespace Kinovea.Root
             rtbAutomation.Text = string.Format(Kinovea.Root.Languages.RootLang.prefPanelCapture_PostRecordingCommandHelp, Kinovea.Root.Languages.RootLang.mnuPostRecordingCommand);
         }
         #endregion
-        
+
         #region Handlers
-        
+
         #region Tab general
-        private void cmbImageFormat_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            capturePathConfiguration.ImageFormat = (KinoveaImageFormat)cmbImageFormat.SelectedIndex;
-        }
-        private void cmbVideoFormat_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            capturePathConfiguration.VideoFormat = (VideoContainer)cmbVideoFormat.SelectedIndex;
-        }
-        private void cmbUncompressedVideoFormat_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            capturePathConfiguration.UncompressedVideoFormat = (KinoveaUncompressedVideoFormat)cmbUncompressedVideoFormat.SelectedIndex;
-        }
         private void tbFramerate_TextChanged(object sender, EventArgs e)
         {
             // Parse in current culture.
@@ -426,7 +421,6 @@ namespace Kinovea.Root
         {
             captureKVA = tbCaptureKVA.Text;
         }
-
         private void btnCaptureKVA_Click(object sender, EventArgs e)
         {
             OpenFileDialog dialog = new OpenFileDialog();
@@ -446,6 +440,23 @@ namespace Kinovea.Root
 
             if (dialog.ShowDialog() == DialogResult.OK)
                 tbCaptureKVA.Text = dialog.FileName;
+        }
+        private void cmbImageFormat_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            capturePathConfiguration.ImageFormat = (KinoveaImageFormat)cmbImageFormat.SelectedIndex;
+        }
+        private void cmbVideoFormat_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            capturePathConfiguration.VideoFormat = (VideoContainer)cmbVideoFormat.SelectedIndex;
+        }
+        private void cmbVideoCodec_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            capturePathConfiguration.CaptureCodec = (CaptureCodec)cmbVideoCodec.SelectedIndex;
+        }
+
+        private void cmbEncodingQuality_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            capturePathConfiguration.EncodingQuality = (EncodingQuality)cmbEncodingQuality.SelectedIndex;
         }
         #endregion
 
@@ -668,10 +679,6 @@ namespace Kinovea.Root
                 recordingMode = CaptureRecordingMode.Delay;
             else
                 recordingMode = CaptureRecordingMode.Scheduled;
-        }
-        private void chkUncompressedVideo_CheckedChanged(object sender, EventArgs e)
-        {
-            saveUncompressedVideo = chkUncompressedVideo.Checked;
         }
         private void NudReplacementThreshold_ValueChanged(object sender, EventArgs e)
         {
@@ -967,7 +974,6 @@ namespace Kinovea.Root
         public void CommitChanges()
         {
             // General
-            PreferencesManager.CapturePreferences.SaveUncompressedVideo = saveUncompressedVideo;
             PreferencesManager.CapturePreferences.DisplaySynchronizationFramerate = displaySynchronizationFramerate;
             PreferencesManager.CapturePreferences.CaptureKVA = captureKVA;
 
