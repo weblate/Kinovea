@@ -161,6 +161,7 @@ namespace Kinovea.ScreenManager
                 framesToRecord.Clear();
                 Volatile.Write(ref recorderBacklog, 0);
                 Interlocked.Exchange(ref drops, 0);
+                lastSaved = -1;
 
                 acceptRecordingFrames = true;
                 stopRecordingRequested = false;

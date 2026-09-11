@@ -715,6 +715,12 @@ namespace Kinovea.ScreenManager
         #region Capture framerate
         public static double ApplyFrameRateReplacement(double interval)
         {
+            bool enabled = PreferencesManager.CapturePreferences.EnableFramerateReplacement;
+            if (!enabled)
+            {
+                return interval;
+            }
+
             // If the capture happens too fast or too slow for a regular player, set the video metadata
             // to a more sensible framerate.
             // This avoids erratic playback because the player can't cope with the framerate,

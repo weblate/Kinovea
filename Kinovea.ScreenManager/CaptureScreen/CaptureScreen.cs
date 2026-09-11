@@ -172,7 +172,6 @@ namespace Kinovea.ScreenManager
         private ScreenDescriptorCapture screenDescriptor = new ScreenDescriptorCapture();
         private PipelineManager pipelineManager = new PipelineManager();
         private ConsumerDisplay consumerDisplay = new ConsumerDisplay();
-        private ConsumerRealtime consumerRealtime;
         private ConsumerDelayer consumerDelayer;
         private Thread recorderThread;
         private Bitmap recordingThumbnail;
@@ -867,39 +866,25 @@ namespace Kinovea.ScreenManager
             viewportController.ForgetBitmap();
             viewportController.InitializeDisplayRectangle(cameraSummary.DisplayRectangle, referenceSize);
 
-            // The behavior of how we pull frames from the pipeline, push them to the delayer, record them to disk and display them is dependent 
-            // on the recording mode (even while not recording). The recoring mode does not change for the camera connection session. 
+            // The behavior of how we pull frames from the pipeline, push them to the delayer,
+            // record them to disk and display them is dependent on the recording mode (even while not recording).
+            // The recoring mode does not change for the camera connection session. 
             recordingMode = PreferencesManager.CapturePreferences.RecordingMode;
 
-            if (recordingMode == CaptureRecordingMode.Camera)
-            {
-                // Start consumer thread for recording mode "camera".
-                // This is used to pull frames from the pipeline and push them directly to disk.
-                // It will be dormant until recording is started but it has the same lifetime as the pipeline.
-                consumerRealtime = new ConsumerRealtime(shortId);
-                recorderThread = new Thread(consumerRealtime.Run) { IsBackground = true };
-                recorderThread.Name = consumerRealtime.GetType().Name + "-" + shortId;
-                recorderThread.Start();
+            // Start consumer thread for recording mode "delay".
+            // This is used to pull frames from the pipeline and push them in the delayer, 
+            // and then pull frames from the delayer and write them to disk.
+            consumerDelayer = new ConsumerDelayer(shortId);
+            recorderThread = new Thread(consumerDelayer.Run) { IsBackground = true };
+            recorderThread.Name = consumerDelayer.GetType().Name + "-" + shortId;
+            recorderThread.Start();
 
-                pipelineManager.Connect(imageDescriptor, cameraGrabber, consumerDisplay, consumerRealtime);
-            }
-            else if (recordingMode == CaptureRecordingMode.Delay || recordingMode == CaptureRecordingMode.Scheduled)
-            {
-                // Start consumer thread for recording mode "delay".
-                // This is used to pull frames from the pipeline and push them in the delayer, 
-                // and then pull frames from the delayer and write them to disk.
-                consumerDelayer = new ConsumerDelayer(shortId);
-                recorderThread = new Thread(consumerDelayer.Run) { IsBackground = true };
-                recorderThread.Name = consumerDelayer.GetType().Name + "-" + shortId;
-                recorderThread.Start();
+            pipelineManager.Connect(imageDescriptor, cameraGrabber, consumerDisplay, consumerDelayer);
 
-                pipelineManager.Connect(imageDescriptor, cameraGrabber, consumerDisplay, consumerDelayer);
-
-                // The delayer life is synched with the grabbing, which is connect/disconnect.
-                // So we can activate the consumer right away.
-                consumerDelayer.PrepareDelay(delayer);
-                consumerDelayer.Activate();
-            }
+            // The delayer life is synched with the grabbing, which is connect/disconnect.
+            // So we can activate the consumer right away.
+            consumerDelayer.PrepareDelay(delayer);
+            consumerDelayer.Activate();
 
             nonGrabbingInteractionTimer.Enabled = false;
 
@@ -982,9 +967,6 @@ namespace Kinovea.ScreenManager
 
             if (recording)
                 StopRecording(false);
-
-            if (consumerRealtime != null)
-                consumerRealtime.Stop();
 
             if (consumerDelayer != null)
                 consumerDelayer.Stop();
@@ -1202,15 +1184,7 @@ namespace Kinovea.ScreenManager
             double frameProcessingDuration = 0;
             int backlogValue = 0;
             long recordingDrops = 0;
-            if (recordingMode == CaptureRecordingMode.Camera)
-            {
-                // Here we don't report load if not recording as it's non-blocking.
-                if (recording && consumerRealtime != null)
-                {
-                    frameProcessingDuration = consumerRealtime.Elapsed;
-                }
-            }
-            else if (consumerDelayer != null)
+            if (consumerDelayer != null)
             {
                 frameProcessingDuration = consumerDelayer.FrameProcessingDuration;
                 backlogValue = consumerDelayer.RecorderBacklog;
@@ -1307,15 +1281,6 @@ namespace Kinovea.ScreenManager
             //--------------------------------------------------
             // Low frequency loop.
             // Anything done here must be non-blocking to the pipeline/frame producer.
-            // Any recording to disk must be done in a high frequency loop (= at camera fps).
-            // In the case of recording mode "camera", we don't care too much about the delay buffer correctness, 
-            // so we only fill it here, sparsely, with less frames than the full time resolution.
-            // In the case of recording mode "delay/display" it's the opposite, since the recording will pull frames
-            // from the delay buffer, it must be filled densely, with all the frames.
-            // 
-            // Note on delay: the user is setting the delay in frames.
-            // Here, whether the delay buffer is sparse or dense, the correct frame to pull is the one specified by this delay in frames, 
-            // we don't need to take into account the difference in display framerate vs camera framerate.
             //--------------------------------------------------
 
             if (inQuietPeriod)
@@ -1324,25 +1289,17 @@ namespace Kinovea.ScreenManager
             if (!cameraConnected)
                 return;
 
-            //if (recordingMode == CaptureRecordingMode.Camera)
-            //{
-            //    consumerDisplay.ConsumeOne();
-            //    Frame freshFrame = consumerDisplay.Frame;
-            //    if (freshFrame == null)
-            //        return;
-
-            //    delayer.Push(freshFrame);
-            //}
-
             // Get the displayed frame.
-            long target = 0;
-            Bitmap displayFrame = delayedDisplay ? 
-                delayer.GetWeakByAge(delay, ImageRotation, Mirrored, out target): 
-                delayer.GetWeakByAge(0,     ImageRotation, Mirrored, out target);
+            int age = delayedDisplay ? delay : 0;
+            Bitmap displayFrame = delayer.GetWeakByAge(age, ImageRotation, Mirrored, out long target);
 
+            // If we are too soon make a "wait" image with a negative timestamp.
             if (displayFrame == null && target < 0)
+            {
                 displayFrame = CreateWaitImage((int)-target);
+            }
             
+            // Swap the viewport frame.
             if (displayFrame != null)
             {
                 viewportController.ForgetBitmap();
@@ -1734,19 +1691,9 @@ namespace Kinovea.ScreenManager
             }
 
             // Stop any current recording.
-            switch (recordingMode)
+            if (consumerDelayer != null && consumerDelayer.Active)
             {
-                case CaptureRecordingMode.Camera:
-                    if (consumerRealtime != null && consumerRealtime.Active)
-                        consumerRealtime.Deactivate();
-                    break;
-                case CaptureRecordingMode.Delay:
-                case CaptureRecordingMode.Scheduled:
-                    if (consumerDelayer != null && consumerDelayer.Active)
-                    {
-                        consumerDelayer.StopRecord();
-                    }
-                    break;
+                consumerDelayer.StopRecord();
             }
 
             if (recordingThumbnail != null)
@@ -1787,7 +1734,7 @@ namespace Kinovea.ScreenManager
             {
                 pipelineManager.SetRecordingPath(path);
 
-                if (recordingMode != CaptureRecordingMode.Scheduled)
+                if (recordingMode == CaptureRecordingMode.Delay)
                 {
                     double interval = 1000.0 / framerate;
                     result = pipelineManager.StartRecord(path, interval, delay, ImageRotation);
@@ -1832,23 +1779,13 @@ namespace Kinovea.ScreenManager
 
             string finalFilename = pipelineManager.Path;
 
-            if (recordingMode != CaptureRecordingMode.Scheduled)
+            if (recordingMode == CaptureRecordingMode.Delay)
             {
-                if (recordingMode == CaptureRecordingMode.Camera)
-                {
-                    if (consumerRealtime == null || (consumerRealtime != null && !consumerRealtime.Active))
-                        return;
+                if (consumerDelayer == null)
+                    return;
 
-                    pipelineManager.StopRecord();
-                }
-                else //(recordingMode == CaptureRecordingMode.Delay)
-                {
-                    if (consumerDelayer == null)
-                        return;
-
-                    pipelineManager.StopRecord();
-                }
-
+                pipelineManager.StopRecord();
+                
                 recording = false;
                 string dropMessage = string.Format("Dropped frames: {0}.", pipelineManager.Drops);
                 if (pipelineManager.Drops > 0)
@@ -1859,7 +1796,7 @@ namespace Kinovea.ScreenManager
                 viewportController.StoppingRecording();
                 AfterStopRecording(finalFilename);
             }
-            else // recordingMode == CaptureRecordingMode.Scheduled
+            else
             {
                 // Save buffer to disk.
                 // Avoid reentry in StopRecording when we disconnect.
@@ -1923,7 +1860,7 @@ namespace Kinovea.ScreenManager
             // This will also help synchronizing videos with different delays.
             // If the camera isn't currently streaming we are in "pause & browse" mode and delay isn't relevant.
             metadata.TimeOrigin = 0;
-            if (cameraConnected && (recordingMode == CaptureRecordingMode.Delay || recordingMode == CaptureRecordingMode.Scheduled) && delay > 0)
+            if (cameraConnected && delay > 0)
             {
                 metadata.TimeOrigin = (long)Math.Round(delay * metadata.AverageTimeStampsPerFrame);
             }
@@ -2239,8 +2176,7 @@ namespace Kinovea.ScreenManager
                 return true;
             }
 
-            if ((recordingMode == CaptureRecordingMode.Delay || recordingMode == CaptureRecordingMode.Scheduled) && 
-                consumerDelayer != null && consumerDelayer.Active)
+            if (consumerDelayer != null && consumerDelayer.Active)
             {
                 // Wait for the consumer to deactivate so it doesn't try to push frames while we are destroying them.
                 consumerDelayer.Deactivate();
@@ -2265,8 +2201,10 @@ namespace Kinovea.ScreenManager
 
             delayer.AllocateBuffers(imageDescriptor, availableMemory);
 
-            if ((recordingMode == CaptureRecordingMode.Delay || recordingMode == CaptureRecordingMode.Scheduled) && consumerDelayer != null)
+            if (consumerDelayer != null)
+            {
                 consumerDelayer.Activate();
+            }
 
             UpdateDelayMaxAge();
 
@@ -2325,24 +2263,15 @@ namespace Kinovea.ScreenManager
             if (cameraGrabber == null || !cameraLoaded)
                 return 0;
 
-            if (recordingMode == CaptureRecordingMode.Camera)
-            {
-                // In recording mode "camera" we don't really care about the delayer, and we just feed it at display fps.
-                return PreferencesManager.CapturePreferences.DisplaySynchronizationFramerate;
-            }
-            else
-            {
-                // In recording mode Delayed and Scheduled, we put all the produced frames into the delayer, so we must use camera fps.
-                double framerate = cameraGrabber.Framerate;
+            double framerate = cameraGrabber.Framerate;
 
-                if (framerate == 0)
-                    framerate = pipelineManager.Frequency;
+            if (framerate == 0)
+                framerate = pipelineManager.Frequency;
 
-                if (framerate == 0)
-                    framerate = PreferencesManager.CapturePreferences.DisplaySynchronizationFramerate;
+            if (framerate == 0)
+                framerate = PreferencesManager.CapturePreferences.DisplaySynchronizationFramerate;
 
-                return framerate;
-            }
+            return framerate;
         }
         #endregion
 

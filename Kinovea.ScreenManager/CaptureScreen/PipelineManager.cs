@@ -65,7 +65,6 @@ namespace Kinovea.ScreenManager
         private bool connected;
         private FramePipeline pipeline;
         private IFrameProducer producer;
-        private ConsumerRealtime consumerRealtime;
         private ConsumerDelayer consumerDelayer;
         private List<IFrameConsumer> consumers = new List<IFrameConsumer>();
         private string filepath;
@@ -75,31 +74,10 @@ namespace Kinovea.ScreenManager
 
         #endregion
 
-        public void Connect(ImageDescriptor imageDescriptor, IFrameProducer producer, ConsumerDisplay consumerDisplay, ConsumerRealtime consumerRealtime)
-        {
-            // At that point the consumer threads are already started.
-            // But only the display thread (actually the UI main thread) should be "active".
-            // The producer thread is not started yet, it will be started outside the pipeline manager.
-            this.producer = producer;
-            this.consumerRealtime = consumerRealtime;
-            this.consumerDelayer = null;
-            this.filepath = null;
-
-            consumerDisplay.SetImageDescriptor(imageDescriptor);
-            consumerRealtime.SetImageDescriptor(imageDescriptor);
-
-            consumers.Clear();
-            consumers.Add(consumerDisplay as IFrameConsumer);
-            consumers.Add(consumerRealtime as IFrameConsumer);
-
-            CreatePipeline(imageDescriptor);
-        }
-
         public void Connect(ImageDescriptor imageDescriptor, IFrameProducer producer, ConsumerDisplay consumerDisplay, ConsumerDelayer consumerDelayer)
         {
             // Same as above but for the recording mode "delay" case.
             this.producer = producer;
-            this.consumerRealtime = null;
             this.consumerDelayer = consumerDelayer;
             this.filepath = null;
 
@@ -145,7 +123,7 @@ namespace Kinovea.ScreenManager
 
         public RecordingResult StartRecord(string filepath, double interval, int age, ImageRotation rotation)
         {
-            if (consumerRealtime == null && consumerDelayer == null)
+            if (consumerDelayer == null)
                 throw new InvalidProgramException();
 
             // Remember the baseline drop count at the start of the recording.
@@ -154,35 +132,16 @@ namespace Kinovea.ScreenManager
             lastRecordingDropCount = 0;
             isRecording = true;
 
-            RecordingResult result;
-            if (consumerRealtime != null)
-            {
-                result = consumerRealtime.StartRecord(filepath, interval, rotation);
-                if (result == RecordingResult.Success)
-                    consumerRealtime.Activate();
-            }
-            else
-            {
-                result = consumerDelayer.StartRecord(filepath, interval, rotation, age);
-            }
-
+            RecordingResult result = consumerDelayer.StartRecord(filepath, interval, rotation, age);
             return result;
         }
 
         public void StopRecord()
         {
-            if (consumerRealtime == null && consumerDelayer == null)
+            if (consumerDelayer == null)
                 throw new InvalidProgramException();
 
-            if (consumerRealtime != null)
-            {
-                consumerRealtime.Deactivate();
-            }
-            else
-            {
-                consumerDelayer.StopRecord();
-            }
-
+            consumerDelayer.StopRecord();
             lastRecordingDropCount = pipeline.Drops - recordingDropBaseline;
             isRecording = false;
         }

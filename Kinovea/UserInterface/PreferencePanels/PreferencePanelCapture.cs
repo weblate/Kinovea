@@ -74,9 +74,9 @@ namespace Kinovea.Root
 
         // Recording
         private CaptureRecordingMode recordingMode;
+        private bool enableFramerateReplacement;
         private float replacementFramerateThreshold;
         private float replacementFramerate;
-        private KVAExportFlags exportFlags = KVAExportFlags.DefaultCaptureRecording;
 
         // Folders
         private CapturePathConfiguration capturePathConfiguration = new CapturePathConfiguration();
@@ -88,6 +88,7 @@ namespace Kinovea.Root
         private bool ignoreOverwriteWarning;
         private bool defaultFileNamePreviewMode;
         private string memoDefaultFileName;
+        private KVAExportFlags exportFlags = KVAExportFlags.DefaultCaptureRecording;
 
         // Trigger
         private bool enableAudioTrigger;
@@ -158,9 +159,9 @@ namespace Kinovea.Root
             
             // Recording
             recordingMode = PreferencesManager.CapturePreferences.RecordingMode;
+            enableFramerateReplacement = PreferencesManager.CapturePreferences.EnableFramerateReplacement;
             replacementFramerateThreshold = PreferencesManager.CapturePreferences.HighspeedRecordingFramerateThreshold;
             replacementFramerate = PreferencesManager.CapturePreferences.HighspeedRecordingFramerateOutput;
-            exportFlags = PreferencesManager.CapturePreferences.ExportFlags;
 
             // Folders
             capturePathConfiguration = PreferencesManager.CapturePreferences.CapturePathConfiguration.Clone();
@@ -168,6 +169,7 @@ namespace Kinovea.Root
             // Files
             enableAutoNumbering = PreferencesManager.CapturePreferences.CaptureAutomationConfiguration.EnableAutoNumbering;
             ignoreOverwriteWarning = PreferencesManager.CapturePreferences.CaptureAutomationConfiguration.IgnoreOverwrite;
+            exportFlags = PreferencesManager.CapturePreferences.ExportFlags;
 
             // Trigger
             enableAudioTrigger = PreferencesManager.CapturePreferences.CaptureAutomationConfiguration.EnableAudioTrigger;
@@ -258,30 +260,39 @@ namespace Kinovea.Root
         {
             tabRecording.Text = RootLang.dlgPreferences_Capture_Recording;
 
+            // Recording mode.
             grpRecordingMode.Text = RootLang.dlgPreferences_Capture_RecordingMode;
-            rbRecordingCamera.Text = RootLang.dlgPreferences_Capture_RecordingMode_Camera;
-            rbRecordingDelayed.Text = RootLang.dlgPreferences_Capture_RecordingMode_Display;
-            rbRecordingScheduled.Text = RootLang.dlgPreferences_Capture_RecordingMode_Scheduled;
+            rbRecordingDelayed.Text = "Save while recording";
+            lblDelayedHelp.Text = "Frames are saved to the video file as recording progresses. This supports recordings of any length and can also be used with video delay.";
 
-            rbRecordingCamera.Checked = recordingMode == CaptureRecordingMode.Camera;
+            rbRecordingScheduled.Text = "Save after recording stops";
+            lblBufferedHelp.Text = "The complete recording is kept in memory, then saved to the video file when recording ends. The recording duration is limited by the available buffer, but this can work better at high frame rates or with slower storage.";
+
             rbRecordingDelayed.Checked = recordingMode == CaptureRecordingMode.Delay;
             rbRecordingScheduled.Checked = recordingMode == CaptureRecordingMode.Scheduled;
 
-            gbHighspeedCameras.Text = RootLang.dlgPreferences_Capture_gbHighspeedCameras;
-            lblReplacementThreshold.Text = RootLang.dlgPreferences_Capture_lblReplacementThreshold;
-            lblReplacementFramerate.Text = RootLang.dlgPreferences_Capture_lblReplacementValue;
+
+            // High speed recording
+            gbHighspeedCameras.Text = "High-speed recording";
+            chkHighspeedRecording.Text = "Adjust playback frame rate for high-speed recordings";
+            chkHighspeedRecording.Checked = enableFramerateReplacement;
+
+            lblReplacementThreshold.Text = "High-speed threshold (fps):";
+            lblReplacementFramerate.Text = "Playback frame rate (fps):";
             nudReplacementThreshold.Value = (decimal)replacementFramerateThreshold;
             nudReplacementFramerate.Value = (decimal)replacementFramerate;
             NudHelper.FixNudScroll(nudReplacementThreshold);
             NudHelper.FixNudScroll(nudReplacementFramerate);
-            // Tooltip: Starting at this capture framerate, videos will be created with the replacement framerate in their metadata.
 
-            grpAnnotations.Text = Kinovea.Root.Languages.RootLang.prefPanelCapture_ExportedAnnotations;
-            chkExportDrawings.Text = Kinovea.Root.Languages.RootLang.prefPanelCapture_ExportDrawings;
-            chkExportCalibration.Text = Kinovea.Root.Languages.RootLang.prefPanelCapture_ExportCalibration;
+            // tooltip
+            string toolTipHighSpeedRecording = "Very high frame rates can be difficult for video players to play reliably.\n" + 
+                "Kinovea can preserve every captured frame while saving the video at a lower playback frame rate, producing smooth slow-motion playback.";
 
-            chkExportCalibration.Checked = (exportFlags & KVAExportFlags.Calibration) != 0;
-            chkExportDrawings.Checked = (exportFlags & KVAExportFlags.Drawings) != 0;
+            toolTip1.SetToolTip(btnHighspeedHelp, toolTipHighSpeedRecording);
+            btnHighspeedHelp.Click += (s, e) => {
+                toolTip1.Show(toolTipHighSpeedRecording, btnHighspeedHelp, 10000);
+            };
+
         }
 
         private void InitTabFolders()
@@ -330,6 +341,13 @@ namespace Kinovea.Root
             chkIgnoreOverwriteWarning.Text = RootLang.dlgPreferences_Capture_chkIgnoreOverwrite;
             chkIgnoreOverwriteWarning.Checked = ignoreOverwriteWarning;
             toolTip1.SetToolTip(chkIgnoreOverwriteWarning, Kinovea.Root.Languages.RootLang.prefPanelCapture_ToolTipIgnoreOverwriteWarning);
+
+            grpAnnotations.Text = Kinovea.Root.Languages.RootLang.prefPanelCapture_ExportedAnnotations;
+            chkExportDrawings.Text = Kinovea.Root.Languages.RootLang.prefPanelCapture_ExportDrawings;
+            chkExportCalibration.Text = Kinovea.Root.Languages.RootLang.prefPanelCapture_ExportCalibration;
+
+            chkExportCalibration.Checked = (exportFlags & KVAExportFlags.Calibration) != 0;
+            chkExportDrawings.Checked = (exportFlags & KVAExportFlags.Drawings) != 0;
         }
 
         private void InitTabTrigger()
@@ -673,12 +691,14 @@ namespace Kinovea.Root
         #region Tab Recording
         private void radioRecordingMode_CheckedChanged(object sender, EventArgs e)
         {
-            if (rbRecordingCamera.Checked)
-                recordingMode = CaptureRecordingMode.Camera;
-            else if (rbRecordingDelayed.Checked)
+            if (rbRecordingDelayed.Checked)
                 recordingMode = CaptureRecordingMode.Delay;
             else
                 recordingMode = CaptureRecordingMode.Scheduled;
+        }
+        private void chkHighspeedRecording_CheckedChanged(object sender, EventArgs e)
+        {
+            enableFramerateReplacement = chkHighspeedRecording.Checked;
         }
         private void NudReplacementThreshold_ValueChanged(object sender, EventArgs e)
         {
@@ -982,6 +1002,7 @@ namespace Kinovea.Root
 
             // Recording
             PreferencesManager.CapturePreferences.RecordingMode = recordingMode;
+            PreferencesManager.CapturePreferences.EnableFramerateReplacement = enableFramerateReplacement;
             PreferencesManager.CapturePreferences.HighspeedRecordingFramerateThreshold = replacementFramerateThreshold;
             PreferencesManager.CapturePreferences.HighspeedRecordingFramerateOutput = replacementFramerate;
             PreferencesManager.CapturePreferences.ExportFlags = exportFlags;

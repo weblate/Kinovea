@@ -304,7 +304,6 @@
     <Compile Include="CaptureScreen\Trigger\AudioInputLevelMonitor.cs" />
     <Compile Include="CaptureScreen\ConsumerDelayer.cs" />
     <Compile Include="CaptureScreen\ConsumerDisplay.cs" />
-    <Compile Include="CaptureScreen\ConsumerRealtime.cs" />
     <Compile Include="CaptureScreen\Delayer.cs" />
     <Compile Include="CaptureScreen\LoadStatus.cs" />
     <Compile Include="CaptureScreen\PipelineManager.cs" />

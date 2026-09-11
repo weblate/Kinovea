@@ -69,18 +69,18 @@ namespace Kinovea.Root
       this.lblMemoryBuffer = new System.Windows.Forms.Label();
       this.trkMemoryBuffer = new System.Windows.Forms.TrackBar();
       this.tabRecording = new System.Windows.Forms.TabPage();
-      this.grpAnnotations = new System.Windows.Forms.GroupBox();
-      this.chkExportCalibration = new System.Windows.Forms.CheckBox();
-      this.chkExportDrawings = new System.Windows.Forms.CheckBox();
       this.gbHighspeedCameras = new System.Windows.Forms.GroupBox();
+      this.btnHighspeedHelp = new System.Windows.Forms.Button();
+      this.chkHighspeedRecording = new System.Windows.Forms.CheckBox();
       this.nudReplacementFramerate = new System.Windows.Forms.NumericUpDown();
       this.lblReplacementFramerate = new System.Windows.Forms.Label();
       this.nudReplacementThreshold = new System.Windows.Forms.NumericUpDown();
       this.lblReplacementThreshold = new System.Windows.Forms.Label();
       this.grpRecordingMode = new System.Windows.Forms.GroupBox();
+      this.lblBufferedHelp = new System.Windows.Forms.Label();
+      this.lblDelayedHelp = new System.Windows.Forms.Label();
       this.rbRecordingDelayed = new System.Windows.Forms.RadioButton();
       this.rbRecordingScheduled = new System.Windows.Forms.RadioButton();
-      this.rbRecordingCamera = new System.Windows.Forms.RadioButton();
       this.tabPaths = new System.Windows.Forms.TabPage();
       this.grpCaptureFolderDetails = new System.Windows.Forms.GroupBox();
       this.btnCaptureFolderInterpolate = new System.Windows.Forms.Button();
@@ -100,6 +100,9 @@ namespace Kinovea.Root
       this.olvCaptureFolders = new BrightIdeasSoftware.ObjectListView();
       this.btnSortFolderUp = new System.Windows.Forms.Button();
       this.tabFiles = new System.Windows.Forms.TabPage();
+      this.grpAnnotations = new System.Windows.Forms.GroupBox();
+      this.chkExportCalibration = new System.Windows.Forms.CheckBox();
+      this.chkExportDrawings = new System.Windows.Forms.CheckBox();
       this.chkAutoNumbering = new System.Windows.Forms.CheckBox();
       this.btnFilesInterpolate = new System.Windows.Forms.Button();
       this.btnFilesInsertUnderscore = new System.Windows.Forms.Button();
@@ -138,7 +141,6 @@ namespace Kinovea.Root
       this.tabMemory.SuspendLayout();
       ((System.ComponentModel.ISupportInitialize)(this.trkMemoryBuffer)).BeginInit();
       this.tabRecording.SuspendLayout();
-      this.grpAnnotations.SuspendLayout();
       this.gbHighspeedCameras.SuspendLayout();
       ((System.ComponentModel.ISupportInitialize)(this.nudReplacementFramerate)).BeginInit();
       ((System.ComponentModel.ISupportInitialize)(this.nudReplacementThreshold)).BeginInit();
@@ -148,6 +150,7 @@ namespace Kinovea.Root
       this.grpCaptureFolders.SuspendLayout();
       ((System.ComponentModel.ISupportInitialize)(this.olvCaptureFolders)).BeginInit();
       this.tabFiles.SuspendLayout();
+      this.grpAnnotations.SuspendLayout();
       this.tabTrigger.SuspendLayout();
       this.groupBox1.SuspendLayout();
       ((System.ComponentModel.ISupportInitialize)(this.nudUDPPort)).BeginInit();
@@ -373,7 +376,6 @@ namespace Kinovea.Root
       // 
       // tabRecording
       // 
-      this.tabRecording.Controls.Add(this.grpAnnotations);
       this.tabRecording.Controls.Add(this.gbHighspeedCameras);
       this.tabRecording.Controls.Add(this.grpRecordingMode);
       this.tabRecording.Location = new System.Drawing.Point(4, 22);
@@ -384,55 +386,50 @@ namespace Kinovea.Root
       this.tabRecording.Text = "Recording";
       this.tabRecording.UseVisualStyleBackColor = true;
       // 
-      // grpAnnotations
-      // 
-      this.grpAnnotations.Controls.Add(this.chkExportCalibration);
-      this.grpAnnotations.Controls.Add(this.chkExportDrawings);
-      this.grpAnnotations.Location = new System.Drawing.Point(6, 200);
-      this.grpAnnotations.Name = "grpAnnotations";
-      this.grpAnnotations.Size = new System.Drawing.Size(470, 81);
-      this.grpAnnotations.TabIndex = 57;
-      this.grpAnnotations.TabStop = false;
-      this.grpAnnotations.Text = "Exported annotations";
-      // 
-      // chkExportCalibration
-      // 
-      this.chkExportCalibration.AutoSize = true;
-      this.chkExportCalibration.Location = new System.Drawing.Point(20, 51);
-      this.chkExportCalibration.Name = "chkExportCalibration";
-      this.chkExportCalibration.Size = new System.Drawing.Size(107, 17);
-      this.chkExportCalibration.TabIndex = 58;
-      this.chkExportCalibration.Text = "Export calibration";
-      this.chkExportCalibration.UseVisualStyleBackColor = true;
-      this.chkExportCalibration.CheckedChanged += new System.EventHandler(this.chkExcludeCalibration_CheckedChanged);
-      // 
-      // chkExportDrawings
-      // 
-      this.chkExportDrawings.AutoSize = true;
-      this.chkExportDrawings.Location = new System.Drawing.Point(20, 26);
-      this.chkExportDrawings.Name = "chkExportDrawings";
-      this.chkExportDrawings.Size = new System.Drawing.Size(101, 17);
-      this.chkExportDrawings.TabIndex = 57;
-      this.chkExportDrawings.Text = "Export drawings";
-      this.chkExportDrawings.UseVisualStyleBackColor = true;
-      this.chkExportDrawings.CheckedChanged += new System.EventHandler(this.chkExcludeDrawings_CheckedChanged);
-      // 
       // gbHighspeedCameras
       // 
+      this.gbHighspeedCameras.Controls.Add(this.btnHighspeedHelp);
+      this.gbHighspeedCameras.Controls.Add(this.chkHighspeedRecording);
       this.gbHighspeedCameras.Controls.Add(this.nudReplacementFramerate);
       this.gbHighspeedCameras.Controls.Add(this.lblReplacementFramerate);
       this.gbHighspeedCameras.Controls.Add(this.nudReplacementThreshold);
       this.gbHighspeedCameras.Controls.Add(this.lblReplacementThreshold);
-      this.gbHighspeedCameras.Location = new System.Drawing.Point(6, 113);
+      this.gbHighspeedCameras.Location = new System.Drawing.Point(6, 181);
       this.gbHighspeedCameras.Name = "gbHighspeedCameras";
-      this.gbHighspeedCameras.Size = new System.Drawing.Size(470, 81);
+      this.gbHighspeedCameras.Size = new System.Drawing.Size(470, 109);
       this.gbHighspeedCameras.TabIndex = 41;
       this.gbHighspeedCameras.TabStop = false;
       this.gbHighspeedCameras.Text = "High speed cameras";
       // 
+      // btnHighspeedHelp
+      // 
+      this.btnHighspeedHelp.FlatAppearance.BorderSize = 0;
+      this.btnHighspeedHelp.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Transparent;
+      this.btnHighspeedHelp.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Transparent;
+      this.btnHighspeedHelp.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+      this.btnHighspeedHelp.Image = global::Kinovea.Root.Properties.Resources.information;
+      this.btnHighspeedHelp.Location = new System.Drawing.Point(440, 19);
+      this.btnHighspeedHelp.Name = "btnHighspeedHelp";
+      this.btnHighspeedHelp.Size = new System.Drawing.Size(24, 24);
+      this.btnHighspeedHelp.TabIndex = 67;
+      this.btnHighspeedHelp.UseVisualStyleBackColor = true;
+      // 
+      // chkHighspeedRecording
+      // 
+      this.chkHighspeedRecording.AutoSize = true;
+      this.chkHighspeedRecording.Checked = true;
+      this.chkHighspeedRecording.CheckState = System.Windows.Forms.CheckState.Checked;
+      this.chkHighspeedRecording.Location = new System.Drawing.Point(20, 25);
+      this.chkHighspeedRecording.Name = "chkHighspeedRecording";
+      this.chkHighspeedRecording.Size = new System.Drawing.Size(274, 17);
+      this.chkHighspeedRecording.TabIndex = 66;
+      this.chkHighspeedRecording.Text = "Create slow-motion video from high-speed recordings";
+      this.chkHighspeedRecording.UseVisualStyleBackColor = true;
+      this.chkHighspeedRecording.CheckedChanged += new System.EventHandler(this.chkHighspeedRecording_CheckedChanged);
+      // 
       // nudReplacementFramerate
       // 
-      this.nudReplacementFramerate.Location = new System.Drawing.Point(281, 48);
+      this.nudReplacementFramerate.Location = new System.Drawing.Point(249, 74);
       this.nudReplacementFramerate.Minimum = new decimal(new int[] {
             1,
             0,
@@ -451,7 +448,7 @@ namespace Kinovea.Root
       // lblReplacementFramerate
       // 
       this.lblReplacementFramerate.AutoSize = true;
-      this.lblReplacementFramerate.Location = new System.Drawing.Point(17, 50);
+      this.lblReplacementFramerate.Location = new System.Drawing.Point(38, 76);
       this.lblReplacementFramerate.Name = "lblReplacementFramerate";
       this.lblReplacementFramerate.Size = new System.Drawing.Size(120, 13);
       this.lblReplacementFramerate.TabIndex = 55;
@@ -459,7 +456,7 @@ namespace Kinovea.Root
       // 
       // nudReplacementThreshold
       // 
-      this.nudReplacementThreshold.Location = new System.Drawing.Point(281, 22);
+      this.nudReplacementThreshold.Location = new System.Drawing.Point(249, 48);
       this.nudReplacementThreshold.Maximum = new decimal(new int[] {
             1000,
             0,
@@ -483,7 +480,7 @@ namespace Kinovea.Root
       // lblReplacementThreshold
       // 
       this.lblReplacementThreshold.AutoSize = true;
-      this.lblReplacementThreshold.Location = new System.Drawing.Point(17, 24);
+      this.lblReplacementThreshold.Location = new System.Drawing.Point(38, 50);
       this.lblReplacementThreshold.Name = "lblReplacementThreshold";
       this.lblReplacementThreshold.Size = new System.Drawing.Size(164, 13);
       this.lblReplacementThreshold.TabIndex = 53;
@@ -491,51 +488,56 @@ namespace Kinovea.Root
       // 
       // grpRecordingMode
       // 
+      this.grpRecordingMode.Controls.Add(this.lblBufferedHelp);
+      this.grpRecordingMode.Controls.Add(this.lblDelayedHelp);
       this.grpRecordingMode.Controls.Add(this.rbRecordingDelayed);
       this.grpRecordingMode.Controls.Add(this.rbRecordingScheduled);
-      this.grpRecordingMode.Controls.Add(this.rbRecordingCamera);
       this.grpRecordingMode.Location = new System.Drawing.Point(6, 6);
       this.grpRecordingMode.Name = "grpRecordingMode";
-      this.grpRecordingMode.Size = new System.Drawing.Size(470, 101);
+      this.grpRecordingMode.Size = new System.Drawing.Size(470, 169);
       this.grpRecordingMode.TabIndex = 40;
       this.grpRecordingMode.TabStop = false;
       this.grpRecordingMode.Text = "Recording mode";
       // 
+      // lblBufferedHelp
+      // 
+      this.lblBufferedHelp.Location = new System.Drawing.Point(38, 111);
+      this.lblBufferedHelp.Name = "lblBufferedHelp";
+      this.lblBufferedHelp.Size = new System.Drawing.Size(414, 51);
+      this.lblBufferedHelp.TabIndex = 58;
+      this.lblBufferedHelp.Text = "tip";
+      // 
+      // lblDelayedHelp
+      // 
+      this.lblDelayedHelp.Location = new System.Drawing.Point(38, 42);
+      this.lblDelayedHelp.Name = "lblDelayedHelp";
+      this.lblDelayedHelp.Size = new System.Drawing.Size(414, 44);
+      this.lblDelayedHelp.TabIndex = 57;
+      this.lblDelayedHelp.Text = "tip";
+      // 
       // rbRecordingDelayed
       // 
       this.rbRecordingDelayed.AutoSize = true;
-      this.rbRecordingDelayed.Location = new System.Drawing.Point(21, 48);
+      this.rbRecordingDelayed.Location = new System.Drawing.Point(20, 20);
       this.rbRecordingDelayed.Name = "rbRecordingDelayed";
-      this.rbRecordingDelayed.Size = new System.Drawing.Size(228, 17);
+      this.rbRecordingDelayed.Size = new System.Drawing.Size(124, 17);
       this.rbRecordingDelayed.TabIndex = 39;
       this.rbRecordingDelayed.TabStop = true;
-      this.rbRecordingDelayed.Text = "Delayed: records delayed frames on the fly.";
+      this.rbRecordingDelayed.Text = "Save while recording";
       this.rbRecordingDelayed.UseVisualStyleBackColor = true;
       this.rbRecordingDelayed.CheckedChanged += new System.EventHandler(this.radioRecordingMode_CheckedChanged);
       // 
       // rbRecordingScheduled
       // 
       this.rbRecordingScheduled.AutoSize = true;
-      this.rbRecordingScheduled.Location = new System.Drawing.Point(21, 71);
+      this.rbRecordingScheduled.Location = new System.Drawing.Point(20, 89);
       this.rbRecordingScheduled.Name = "rbRecordingScheduled";
-      this.rbRecordingScheduled.Size = new System.Drawing.Size(221, 17);
+      this.rbRecordingScheduled.Size = new System.Drawing.Size(149, 17);
       this.rbRecordingScheduled.TabIndex = 40;
       this.rbRecordingScheduled.TabStop = true;
-      this.rbRecordingScheduled.Text = "Buffered: records delayed frames on stop.";
+      this.rbRecordingScheduled.Text = "Save after recording stops";
       this.rbRecordingScheduled.UseVisualStyleBackColor = true;
       this.rbRecordingScheduled.CheckedChanged += new System.EventHandler(this.radioRecordingMode_CheckedChanged);
-      // 
-      // rbRecordingCamera
-      // 
-      this.rbRecordingCamera.AutoSize = true;
-      this.rbRecordingCamera.Location = new System.Drawing.Point(21, 25);
-      this.rbRecordingCamera.Name = "rbRecordingCamera";
-      this.rbRecordingCamera.Size = new System.Drawing.Size(227, 17);
-      this.rbRecordingCamera.TabIndex = 38;
-      this.rbRecordingCamera.TabStop = true;
-      this.rbRecordingCamera.Text = "Camera: records real time frames on the fly.";
-      this.rbRecordingCamera.UseVisualStyleBackColor = true;
-      this.rbRecordingCamera.CheckedChanged += new System.EventHandler(this.radioRecordingMode_CheckedChanged);
       // 
       // tabPaths
       // 
@@ -794,6 +796,7 @@ namespace Kinovea.Root
       // 
       // tabFiles
       // 
+      this.tabFiles.Controls.Add(this.grpAnnotations);
       this.tabFiles.Controls.Add(this.chkAutoNumbering);
       this.tabFiles.Controls.Add(this.btnFilesInterpolate);
       this.tabFiles.Controls.Add(this.btnFilesInsertUnderscore);
@@ -809,6 +812,37 @@ namespace Kinovea.Root
       this.tabFiles.TabIndex = 7;
       this.tabFiles.Text = "Files";
       this.tabFiles.UseVisualStyleBackColor = true;
+      // 
+      // grpAnnotations
+      // 
+      this.grpAnnotations.Controls.Add(this.chkExportCalibration);
+      this.grpAnnotations.Controls.Add(this.chkExportDrawings);
+      this.grpAnnotations.Location = new System.Drawing.Point(7, 193);
+      this.grpAnnotations.Name = "grpAnnotations";
+      this.grpAnnotations.Size = new System.Drawing.Size(461, 87);
+      this.grpAnnotations.TabIndex = 66;
+      this.grpAnnotations.TabStop = false;
+      this.grpAnnotations.Text = "Exported annotations";
+      // 
+      // chkExportCalibration
+      // 
+      this.chkExportCalibration.AutoSize = true;
+      this.chkExportCalibration.Location = new System.Drawing.Point(20, 51);
+      this.chkExportCalibration.Name = "chkExportCalibration";
+      this.chkExportCalibration.Size = new System.Drawing.Size(107, 17);
+      this.chkExportCalibration.TabIndex = 58;
+      this.chkExportCalibration.Text = "Export calibration";
+      this.chkExportCalibration.UseVisualStyleBackColor = true;
+      // 
+      // chkExportDrawings
+      // 
+      this.chkExportDrawings.AutoSize = true;
+      this.chkExportDrawings.Location = new System.Drawing.Point(20, 26);
+      this.chkExportDrawings.Name = "chkExportDrawings";
+      this.chkExportDrawings.Size = new System.Drawing.Size(101, 17);
+      this.chkExportDrawings.TabIndex = 57;
+      this.chkExportDrawings.Text = "Export drawings";
+      this.chkExportDrawings.UseVisualStyleBackColor = true;
       // 
       // chkAutoNumbering
       // 
@@ -1201,8 +1235,6 @@ namespace Kinovea.Root
       this.tabMemory.PerformLayout();
       ((System.ComponentModel.ISupportInitialize)(this.trkMemoryBuffer)).EndInit();
       this.tabRecording.ResumeLayout(false);
-      this.grpAnnotations.ResumeLayout(false);
-      this.grpAnnotations.PerformLayout();
       this.gbHighspeedCameras.ResumeLayout(false);
       this.gbHighspeedCameras.PerformLayout();
       ((System.ComponentModel.ISupportInitialize)(this.nudReplacementFramerate)).EndInit();
@@ -1216,6 +1248,8 @@ namespace Kinovea.Root
       ((System.ComponentModel.ISupportInitialize)(this.olvCaptureFolders)).EndInit();
       this.tabFiles.ResumeLayout(false);
       this.tabFiles.PerformLayout();
+      this.grpAnnotations.ResumeLayout(false);
+      this.grpAnnotations.PerformLayout();
       this.tabTrigger.ResumeLayout(false);
       this.tabTrigger.PerformLayout();
       this.groupBox1.ResumeLayout(false);
@@ -1246,7 +1280,6 @@ namespace Kinovea.Root
         private System.Windows.Forms.TabPage tabRecording;
         private System.Windows.Forms.GroupBox grpRecordingMode;
         private System.Windows.Forms.RadioButton rbRecordingDelayed;
-        private System.Windows.Forms.RadioButton rbRecordingCamera;
         private System.Windows.Forms.TabPage tabAutomation;
         private System.Windows.Forms.RadioButton rbRecordingScheduled;
         private System.Windows.Forms.GroupBox gbHighspeedCameras;
@@ -1277,9 +1310,6 @@ namespace Kinovea.Root
         private System.Windows.Forms.NumericUpDown nudQuietPeriod;
         private System.Windows.Forms.ComboBox cmbDefaultTriggerState;
         private System.Windows.Forms.Label lblDefaultTriggerState;
-        private System.Windows.Forms.GroupBox grpAnnotations;
-        private System.Windows.Forms.CheckBox chkExportCalibration;
-        private System.Windows.Forms.CheckBox chkExportDrawings;
         private System.Windows.Forms.GroupBox grpFormats;
         private System.Windows.Forms.GroupBox grpCaptureFolderDetails;
         private System.Windows.Forms.Button btnCaptureFolderBrowse;
@@ -1312,5 +1342,12 @@ namespace Kinovea.Root
         private System.Windows.Forms.Label lblEncodingQuality;
         private System.Windows.Forms.Label lblCodec;
         private System.Windows.Forms.ComboBox cmbVideoCodec;
+        private System.Windows.Forms.Label lblDelayedHelp;
+        private System.Windows.Forms.Label lblBufferedHelp;
+        private System.Windows.Forms.GroupBox grpAnnotations;
+        private System.Windows.Forms.CheckBox chkExportCalibration;
+        private System.Windows.Forms.CheckBox chkExportDrawings;
+        private System.Windows.Forms.CheckBox chkHighspeedRecording;
+        private System.Windows.Forms.Button btnHighspeedHelp;
     }
 }

@@ -8,16 +8,12 @@ namespace Kinovea.Services
     public enum CaptureRecordingMode
     {
         /// <summary>
-        /// In this mode the camera feed is hooked directly to the recorder.
-        /// Encoding and storage is done on the fly and has to match camera framerate.
-        /// In this mode the MJPEG sources will go straight to storage.
-        /// Delay buffer is fed at display framerate and may not contain all the frames.
-        /// </summary>
-        Camera,
-
-        /// <summary>
         /// In this mode the camera feed goes through the delay buffer before being pulled for recording.
-        /// Encoding and storage is done on the fly and has to match camera framerate.
+        /// Encoding is done on the fly in a separate thread.
+        /// Encoding is allowed to fall behind camera frame rate as long as the frames it needs are still in the buffer.
+        /// If encoding can sustain camera frame rate this can be used to record videos of unlimited length.
+        /// If encoding can't sustain camera frame rate the delay buffer should be set to cover the 
+        /// expected recording length. Otherwise we'll get drops at the end.
         /// </summary>
         Delay, 
 

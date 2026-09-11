@@ -72,6 +72,11 @@ namespace Kinovea.Services
             get { BeforeRead(); return captureAutomationConfiguration; }
             set { captureAutomationConfiguration = value; Save(); }
         }
+        public bool EnableFramerateReplacement
+        {
+            get { BeforeRead(); return enableFramerateReplacement; }
+            set { enableFramerateReplacement = value; Save(); }
+        }
         public float HighspeedRecordingFramerateThreshold
         {
             get { BeforeRead(); return highspeedRecordingFramerateThreshold; }
@@ -125,6 +130,7 @@ namespace Kinovea.Services
         private Dictionary<string, CameraBlurb> cameraBlurbs = new Dictionary<string, CameraBlurb>();
         private PhotofinishConfiguration photofinishConfiguration = new PhotofinishConfiguration();
         private CaptureAutomationConfiguration captureAutomationConfiguration = new CaptureAutomationConfiguration();
+        private bool enableFramerateReplacement = true;
         private float highspeedRecordingFramerateThreshold = 150;
         private float highspeedRecordingFramerateOutput = 30;
         private float slowspeedRecordingFramerateThreshold = 1;
@@ -251,6 +257,7 @@ namespace Kinovea.Services
             captureAutomationConfiguration.WriteXml(writer);
             writer.WriteEndElement();
 
+            writer.WriteElementString("EnableFramerateReplacement", XmlHelper.WriteBoolean(enableFramerateReplacement));
             string hrft = highspeedRecordingFramerateThreshold.ToString("0.000", CultureInfo.InvariantCulture);
             string hrfo = highspeedRecordingFramerateOutput.ToString("0.000", CultureInfo.InvariantCulture);
             writer.WriteElementString("HighspeedRecordingFramerateThreshold", hrft);
@@ -283,7 +290,8 @@ namespace Kinovea.Services
                         break;
                     case "CaptureRecordingMode":
                         string recordingModeString = reader.ReadElementContentAsString();
-                        recordingMode = (CaptureRecordingMode)Enum.Parse(typeof(CaptureRecordingMode), recordingModeString);
+                        bool parsed = Enum.TryParse<CaptureRecordingMode>(recordingModeString, out recordingMode);
+                        //recordingMode = (CaptureRecordingMode)Enum.Parse(typeof(CaptureRecordingMode), recordingModeString);
                         break;
                     case "SaveUncompressedVideo":
                         saveUncompressedVideo = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
@@ -306,6 +314,9 @@ namespace Kinovea.Services
                         break;
                     case "CaptureAutomationConfiguration":
                         captureAutomationConfiguration.ReadXml(reader);
+                        break;
+                    case "EnableFramerateReplacement":
+                        enableFramerateReplacement = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
                         break;
                     case "HighspeedRecordingFramerateThreshold":
                         string hrft = reader.ReadElementContentAsString();
