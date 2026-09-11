@@ -73,6 +73,7 @@ namespace Kinovea.Root
         private bool showCacheInTimeline;
 
         // Player
+        private bool enableHardwareDecoding;
         private bool enableFrameSkipping;
         private bool loopPlayback;
         private bool showFramerateInSpeedLabel;
@@ -133,6 +134,7 @@ namespace Kinovea.Root
             showCacheInTimeline = PreferencesManager.PlayerPreferences.ShowCacheInTimeline;
             
             // Player
+            enableHardwareDecoding = PreferencesManager.PlayerPreferences.EnableHardwareDecoding;
             enableFrameSkipping = PreferencesManager.PlayerPreferences.EnableFrameSkipping;
             loopPlayback = PreferencesManager.PlayerPreferences.LoopPlayback;
             interactiveFrameTracker = PreferencesManager.PlayerPreferences.InteractiveFrameTracker;
@@ -189,6 +191,7 @@ namespace Kinovea.Root
         {
             tabPlayer.Text = "Player";
 
+            chkHardwareDecoding.Text = "Enable hardware decoding";
             chkEnableFrameSkipping.Text = "Enable frame skipping";
             chkInteractiveTracker.Text = RootLang.dlgPreferences_Player_InteractiveFrameTracker;
             chkLockSpeeds.Text = RootLang.dlgPreferences_Player_SyncLockSpeeds;
@@ -196,6 +199,7 @@ namespace Kinovea.Root
             chkShowFramerate.Text = "Show framerate in speed label";
             chkLoopPlayback.Text = "Loop playback";
 
+            chkHardwareDecoding.Checked = enableHardwareDecoding;
             chkEnableFrameSkipping.Checked = enableFrameSkipping;
             chkInteractiveTracker.Checked = interactiveFrameTracker;
             chkLockSpeeds.Checked = syncLockSpeeds;
@@ -309,6 +313,10 @@ namespace Kinovea.Root
         #endregion
 
         #region Player
+        private void chkHardwareDecoding_CheckedChanged(object sender, EventArgs e)
+        {
+            enableHardwareDecoding = chkHardwareDecoding.Checked;
+        }
         private void ChkEnableFrameSkippingCheckedChanged(object sender, EventArgs e)
         {
             enableFrameSkipping = chkEnableFrameSkipping.Checked;
@@ -477,6 +485,7 @@ namespace Kinovea.Root
             PreferencesManager.PlayerPreferences.ShowCacheInTimeline = showCacheInTimeline;
 
             // Player
+            PreferencesManager.PlayerPreferences.EnableHardwareDecoding = enableHardwareDecoding;
             PreferencesManager.PlayerPreferences.EnableFrameSkipping = enableFrameSkipping;
             PreferencesManager.PlayerPreferences.InteractiveFrameTracker = interactiveFrameTracker;
             PreferencesManager.PlayerPreferences.SyncLockSpeed = syncLockSpeeds;

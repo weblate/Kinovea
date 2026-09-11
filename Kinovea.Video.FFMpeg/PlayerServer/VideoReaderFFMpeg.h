@@ -61,11 +61,13 @@ extern "C" {
 #include "libavformat/avformat.h"
 #include "libavutil/avutil.h"
 #include "libavutil/frame.h"
+#include "libavutil/hwcontext.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/pixdesc.h"
 #include "libavutil/display.h"
 #include "libswresample/swresample.h"
 #include "libswscale/swscale.h"
+
 }
 
 #include "ReadResult.h"
@@ -84,6 +86,11 @@ using namespace Kinovea::Services;
 
 namespace Kinovea { namespace Video { namespace FFMpeg
 {
+    struct HardwareDecodeState
+    {
+        AVPixelFormat PixelFormat;
+    };
+
     [SupportedExtensions(
         ".3gp;.3gpp;.asf;.avi;.dv;.flv;.f4v;\
         .m1v;.m2p;.m2t;.m2ts;.mts;.m2v;.m4v;.ts;.ts1;.ts2;.avr;\
@@ -216,8 +223,7 @@ namespace Kinovea { namespace Video { namespace FFMpeg
 
     // Members
     private:
-
-        static const enum AVPixelFormat sConvertPixelFormat = AV_PIX_FMT_BGRA;
+        
         static log4net::ILog^ log = log4net::LogManager::GetLogger(MethodBase::GetCurrentMethod()->DeclaringType);
 
         // General
@@ -276,6 +282,7 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         AVFormatContext* mFormatCtx;
         int mVideoStreamIndex;
         AVCodecContext* mVideoCodecCtx;
+        static const enum AVPixelFormat sConvertPixelFormat = AV_PIX_FMT_BGRA;
 
         // The frame-domain timestamp of the frame we last added to the cache.
         // This is not necessarily the frame that the player is currently showing.
@@ -289,6 +296,11 @@ namespace Kinovea { namespace Video { namespace FFMpeg
 
         // The seek-domain timestamp of the last keyframe. (packet->pts or packet->dts).
         int64_t mCurrentGopTimestamp = AV_NOPTS_VALUE;
+
+        AVBufferRef* mHwDeviceContext = nullptr;
+        AVPixelFormat mHwPixelFormat = AV_PIX_FMT_NONE;
+        HardwareDecodeState* mHardwareDecodeState = nullptr;
+
 
         //------------------------
         // Player state requests and decoding jobs
@@ -357,6 +369,7 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         AVFilterContext* mFilterSource = nullptr;
         AVFilterContext* mFilterSink = nullptr;
         AVFrame* mFilteredFrame = nullptr;
+        AVFrame* mSoftwareFrame = nullptr;
         static bool mCopyFilteredFrame = true;
 
         // Active configuration of the filter graph.
@@ -393,7 +406,6 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         /// Estimate the frame rate of the video stream.
         /// Updates mVideoInfo.FramesPerSeconds.
         void GuessFrameRate(AVFormatContext* formatCtx, AVCodecContext* videoCodecCtx, int streamIndex, bool verbose);
-
 
         //-------------------
         // Navigation / player demands
@@ -478,7 +490,9 @@ namespace Kinovea { namespace Video { namespace FFMpeg
 
         /// Get the source format of decoded frames.
         /// This is just ctx->pix_fmt unless the user has specified a demosaicing option.
-        AVPixelFormat GetSourceFormat(AVCodecContext* videoCodecCtx);
+        AVPixelFormat GetSourceFormat(AVFrame* sourceFrame);
+
+        AVFrame* GetSoftwareFrame(AVFrame* decodedFrame);
 
         //-------------------
         // Video geometry

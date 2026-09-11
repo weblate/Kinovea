@@ -105,12 +105,24 @@ void VideoReaderFFMpeg::Close()
 
     DataInit();
 
+    AVFrame* pSoftwareFrame = mSoftwareFrame;
+    av_frame_free(&pSoftwareFrame);
+
+    AVFrame* pFilteredFrame = mFilteredFrame;
+    av_frame_free(&pFilteredFrame);
+
     if (mVideoCodecCtx != nullptr)
     {
         AVCodecContext* pVideoCodecCtx = mVideoCodecCtx;
         avcodec_free_context(&pVideoCodecCtx);
         mVideoCodecCtx = nullptr;
     }
+
+    AVBufferRef* pHwDeviceContext = mHwDeviceContext;
+    av_buffer_unref(&pHwDeviceContext);
+
+    delete mHardwareDecodeState;
+    mHardwareDecodeState = nullptr;
 
     if (mFormatCtx != nullptr)
     {
@@ -213,6 +225,43 @@ VideoSummary^ VideoReaderFFMpeg::ExtractSummary(String^ filePath, int count, Siz
     return summary;
 }
 
+
+
+// Note that the following function is not part of VideoReaderFFMpeg class.
+// It's a purely native function.
+static AVPixelFormat GetHardwareFormat(AVCodecContext* context, const AVPixelFormat* formats)
+{
+    // This function is stored in videoCodecCtx->get_format and called back
+    // by the decoder when it needs to select a pixel format.
+    // It passes the list of formats it can output and we return the one we want.
+
+    // We stored the preferred hardware pixel format in the opaque field of the codec context.
+    // Check if it's in the list of formats the decoder can output.
+    HardwareDecodeState* state = static_cast<HardwareDecodeState*>(context->opaque);
+    if (state != nullptr)
+    {
+        for (const AVPixelFormat* p = formats; *p != AV_PIX_FMT_NONE; p++)
+        {
+            if (*p == state->PixelFormat)
+            {
+                return *p;
+            }
+        }
+    }
+
+    // Hardware initialization might have failed for this particular codec/profile/resolution.
+    // Find a normal software format as fallback.
+    for (const AVPixelFormat* p = formats; *p != AV_PIX_FMT_NONE; p++)
+    {
+        const AVPixFmtDescriptor* desc = av_pix_fmt_desc_get(*p);
+        if (desc != nullptr && !(desc->flags & AV_PIX_FMT_FLAG_HWACCEL))
+        {
+            return *p;
+        }
+    }
+
+    return AV_PIX_FMT_NONE;
+}
 
 
 OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
@@ -361,21 +410,75 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
     }
     else
     {
-        // Enable multithreading.
-        // This increases the buffering in the decoder so only do this for actual playback
-        // not for summary where we only do seeking.
-        videoCodecCtx->thread_count = 0;
-        if (videoCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS)
+        // Try hardware setup as first priority.
+        // Look for hardware configurations supported by this codec.
+        for (int i = 0; ; i++)
         {
-            videoCodecCtx->thread_type = FF_THREAD_FRAME;
+            const AVCodecHWConfig* config = avcodec_get_hw_config(videoCodec, i);
+            if (config == nullptr)
+                break;
+
+            if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX) &&
+                config->device_type == AV_HWDEVICE_TYPE_D3D11VA)
+            {
+                // This should be AV_PIX_FMT_D3D11.
+                mHwPixelFormat = config->pix_fmt;
+                break;
+            }
         }
-        else if (videoCodec->capabilities & AV_CODEC_CAP_SLICE_THREADS)
+
+        bool hardwareRequested = false;
+        bool allowHardwareDecoding = PreferencesManager::PlayerPreferences->EnableHardwareDecoding;
+        if (allowHardwareDecoding && mHwPixelFormat != AV_PIX_FMT_NONE)
         {
-            videoCodecCtx->thread_type = FF_THREAD_SLICE;
+            // Create a hardware device context and attach it to the codec context.
+            AVBufferRef* hwDeviceContext = nullptr;
+            int ret = av_hwdevice_ctx_create(
+                &hwDeviceContext,
+                AV_HWDEVICE_TYPE_D3D11VA,
+                nullptr,    // default adapter
+                nullptr,
+                0);
+
+            if (ret >= 0)
+            {
+                mHwDeviceContext = hwDeviceContext;
+
+                // Wrap the hardware pixel format in a native struct that we store 
+                // in the codec opaque field. This is then used in the native callback 
+                // to match that format in the list of formats supported by the decoder.
+                mHardwareDecodeState = new HardwareDecodeState();
+                mHardwareDecodeState->PixelFormat = mHwPixelFormat;
+                videoCodecCtx->opaque = mHardwareDecodeState;
+
+                // Set the native function as callback.
+                videoCodecCtx->get_format = &GetHardwareFormat;
+                videoCodecCtx->hw_device_ctx = av_buffer_ref(mHwDeviceContext);
+
+                hardwareRequested = videoCodecCtx->hw_device_ctx != nullptr;
+
+                mSoftwareFrame = av_frame_alloc();
+            }
         }
-        else
+
+        // Otherwise try to enable multithreaded software decoding.
+        if (!hardwareRequested)
         {
-            videoCodecCtx->thread_count = 1;
+            // This increases the buffering in the decoder so we only do this 
+            // for actual playback not for summary where we only do seeking.
+            videoCodecCtx->thread_count = 0;
+            if (videoCodec->capabilities & AV_CODEC_CAP_FRAME_THREADS)
+            {
+                videoCodecCtx->thread_type = FF_THREAD_FRAME;
+            }
+            else if (videoCodec->capabilities & AV_CODEC_CAP_SLICE_THREADS)
+            {
+                videoCodecCtx->thread_type = FF_THREAD_SLICE;
+            }
+            else
+            {
+                videoCodecCtx->thread_count = 1;
+            }
         }
     }
     
@@ -391,46 +494,48 @@ OpenVideoResult VideoReaderFFMpeg::Load(String^ filePath, bool forSummary)
     //-----------------------------------------------------
     // videoStream->nb_frames == 0 can happen.
     // videoStream->duration <= 0 can happen.
-    
-    bool verbose = !forSummary;
-    mVideoInfo.AverageTimeStampsPerSeconds = (double)videoStream->time_base.den / (double)videoStream->time_base.num;
-
-    // This may be updated after the first actual decoding.
-    // Ignore negative start time.
-    double startSeconds = (double)formatCtx->start_time / AV_TIME_BASE;
-    long firstTimestamp = (long)Math::Round(startSeconds * mVideoInfo.AverageTimeStampsPerSeconds);
-    mVideoInfo.FirstTimeStamp = Math::Max(firstTimestamp, 0);
-
-    mVideoInfo.DurationTimeStamps = 0;
-    if (videoStream->duration > 0)
     {
-        mVideoInfo.DurationTimeStamps = videoStream->duration;
-    }
-    else if (formatCtx->duration > 0)
-    {
-        double durationSeconds = (double)formatCtx->duration / (double)AV_TIME_BASE;
-        mVideoInfo.DurationTimeStamps = (int64_t)Math::Round(durationSeconds * mVideoInfo.AverageTimeStampsPerSeconds);
-    }
+        bool verbose = !forSummary;
+        mVideoInfo.AverageTimeStampsPerSeconds = (double)videoStream->time_base.den / (double)videoStream->time_base.num;
 
-    if (mVideoInfo.DurationTimeStamps <= 0)
-    {
-        log->Error("Duration info not found.");
-        return OpenVideoResult::StreamInfoNotFound;
-    }
+        // This may be updated after the first actual decoding.
+        // Ignore negative start time.
+        double startSeconds = (double)formatCtx->start_time / AV_TIME_BASE;
+        long firstTimestamp = (long)Math::Round(startSeconds * mVideoInfo.AverageTimeStampsPerSeconds);
+        mVideoInfo.FirstTimeStamp = Math::Max(firstTimestamp, 0);
+
+        mVideoInfo.DurationTimeStamps = 0;
+        if (videoStream->duration > 0)
+        {
+            mVideoInfo.DurationTimeStamps = videoStream->duration;
+        }
+        else if (formatCtx->duration > 0)
+        {
+            double durationSeconds = (double)formatCtx->duration / (double)AV_TIME_BASE;
+            mVideoInfo.DurationTimeStamps = (int64_t)Math::Round(durationSeconds * mVideoInfo.AverageTimeStampsPerSeconds);
+        }
+
+        if (mVideoInfo.DurationTimeStamps <= 0)
+        {
+            log->Error("Duration info not found.");
+            return OpenVideoResult::StreamInfoNotFound;
+        }
         
-    mVideoInfo.FramesPerSeconds = 0;
-    GuessFrameRate(formatCtx, videoCodecCtx, mVideoStreamIndex, verbose);
+        mVideoInfo.FramesPerSeconds = 0;
+        GuessFrameRate(formatCtx, videoCodecCtx, mVideoStreamIndex, verbose);
 
-    mVideoInfo.FrameIntervalMilliseconds = 1000.0 / mVideoInfo.FramesPerSeconds;
-    mVideoInfo.AverageTimeStampsPerFrame = mVideoInfo.AverageTimeStampsPerSeconds / mVideoInfo.FramesPerSeconds;
+        mVideoInfo.FrameIntervalMilliseconds = 1000.0 / mVideoInfo.FramesPerSeconds;
+        mVideoInfo.AverageTimeStampsPerFrame = mVideoInfo.AverageTimeStampsPerSeconds / mVideoInfo.FramesPerSeconds;
+    }
 
     // Initialize tolerance and thresholds.
-    double tolerance = 0.5 * mVideoInfo.AverageTimeStampsPerFrame;
-    mCache->Tolerance = tolerance;
-    mPreBuffer->Tolerance = tolerance;
-    mPreBuffer->FarAheadThreshold = 50.0 * mVideoInfo.AverageTimeStampsPerFrame;
-    mPreRollTimestamps = (mPreBuffer->RetentionWindow + 2) * mVideoInfo.AverageTimeStampsPerFrame;
-
+    {
+        double tolerance = 0.5 * mVideoInfo.AverageTimeStampsPerFrame;
+        mCache->Tolerance = tolerance;
+        mPreBuffer->Tolerance = tolerance;
+        mPreBuffer->FarAheadThreshold = 50.0 * mVideoInfo.AverageTimeStampsPerFrame;
+        mPreRollTimestamps = (mPreBuffer->RetentionWindow + 2) * mVideoInfo.AverageTimeStampsPerFrame;
+    }
 
     // Initial working zone representing the whole video.
     // For the end timestamp we can calculate from either frame count or duration.
@@ -1560,8 +1665,6 @@ ReadResult VideoReaderFFMpeg::ReadFrameNext()
     // between decoding and storing.
     //if (HasJobChanged())
     //{
-    //    // FIXME: we should keep the decoded frame as pending here.
-    //    // The next job might be able to just restart from there.
     //    log->DebugFormat("ReadFrameNext. Job changed during decoding. Abandoning.");
     //    av_frame_free(&frame);
     //    return ReadResult::NewJob;
@@ -1677,8 +1780,11 @@ ReadResult VideoReaderFFMpeg::ReadFrameSeek(int64_t targetTimestamp, bool doSeek
 
         if (framesDecoded % 10 == 0)
         {
-            log->DebugFormat("Advancing towards [~{0}]. Last decoded: [{1}]. Decoded {2} frames.", 
-                targetTimestamp, mDecodedTimestamp, framesDecoded);
+            log->DebugFormat("Advancing towards [~{0}]. Last decoded: [{1}]. Decoded {2} frames. (avg: {3:0.000} ms).", 
+                targetTimestamp, 
+                mDecodedTimestamp, 
+                framesDecoded,
+                (float)stopwatchRelocate->ElapsedMilliseconds / framesDecoded);
         }
 
         
@@ -1687,6 +1793,10 @@ ReadResult VideoReaderFFMpeg::ReadFrameSeek(int64_t targetTimestamp, bool doSeek
             // Check if we are arriving near the target.
             if (!inPreRollWindow && targetTimestamp - mDecodedTimestamp <= mPreRollTimestamps)
             {
+                int64_t elapsed = stopwatchRelocate->ElapsedMilliseconds;
+                log->DebugFormat("Reached seek target. [~{0}] -> [{1}]. Decoded {2} frames in {3} ms (avg: {4:0.000} ms).",
+                    targetTimestamp, mDecodedTimestamp, framesDecoded, elapsed, (float)elapsed / framesDecoded);
+
                 inPreRollWindow = true;
             }
 
@@ -1704,14 +1814,14 @@ ReadResult VideoReaderFFMpeg::ReadFrameSeek(int64_t targetTimestamp, bool doSeek
                 // find the appropriate frame, which may be the penultimate one rather than the ultimate one.
                 //-------------------------------------------------------
                 result = ConvertAndStoreFrame(frame, false, true);
+                
                 log->DebugFormat("Stored preroll frame [{0}]. Decoded {1} frames.", mDecodedTimestamp, framesDecoded);
                 
                 if (mDecodedTimestamp >= targetTimestamp)
                 {
+                    // We are done.
                     mSeekProgressUpdateCounter++;
-                    mSeekProgress = gcnew Kinovea::Video::SeekProgress(
-                        mSeekProgressUpdateCounter,
-                        VideoSection::MakeEmpty());
+                    mSeekProgress = gcnew Kinovea::Video::SeekProgress(mSeekProgressUpdateCounter, VideoSection::MakeEmpty());
 
                     av_frame_free(&frame);
                     break;
@@ -1729,6 +1839,7 @@ ReadResult VideoReaderFFMpeg::ReadFrameSeek(int64_t targetTimestamp, bool doSeek
         }
 
         // Keep decoding.
+        av_frame_unref(frame);
     }
 
     int64_t elapsed = stopwatchRelocate->ElapsedMilliseconds;
@@ -2026,8 +2137,15 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
     // For simplicity we make the extra copy here.
     //-------------------------------------
     
+    // Convert from hardware frame to software frame if needed.
+    AVFrame* sourceFrame = GetSoftwareFrame(decodedFrame);
+    if (sourceFrame == nullptr)
+    {
+        log->ErrorFormat("GetSoftwareFrame returned null.");
+        return ReadResult::NotConverted;
+    }
+
     AVFrame* convertedFrame = av_frame_alloc();
-    
     if (mCopyFilteredFrame)
     {
         // Preallocate buffers with packed alignment.
@@ -2049,7 +2167,7 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
         // Scale and convert the decoded AVFrame to the correct format and size.
         // Uses swscale API.
         converted = RescaleAndConvert(
-            decodedFrame,
+            sourceFrame,
             convertedFrame, 
             mScaledSize.Width,
             mScaledSize.Height,
@@ -2061,7 +2179,7 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
         // Deinterlace, scale and convert the decoded AVFrame.
         // Uses filter graph API.
         converted = RescaleAndConvert2(
-            decodedFrame, 
+            sourceFrame, 
             convertedFrame, 
             mScaledSize.Width,
             mScaledSize.Height,
@@ -2138,12 +2256,11 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
     VideoFrame^ vf = gcnew VideoFrame(bmp, mDecodedTimestamp, mPreviousDecodedTimestamp);
     
     CacheAddResult addResult = force ? mFrameContainer->ForceAdd(vf) : mFrameContainer->Add(vf);
-
     if (addResult == CacheAddResult::Added)
     {
         mCachedTimestamp = mDecodedTimestamp;
     }
-    if (addResult == CacheAddResult::Duplicate)
+    else if (addResult == CacheAddResult::Duplicate)
     {
         mCachedTimestamp = mDecodedTimestamp;
         DisposeFrame(vf);
@@ -2163,11 +2280,36 @@ ReadResult VideoReaderFFMpeg::ConvertAndStoreFrame(AVFrame* decodedFrame, bool f
 }
 
 
-AVPixelFormat VideoReaderFFMpeg::GetSourceFormat(AVCodecContext* videoCodecCtx)
+AVFrame* VideoReaderFFMpeg::GetSoftwareFrame(AVFrame* decodedFrame)
 {
+    if (decodedFrame->format != mHwPixelFormat)
+        return decodedFrame;
+
+    av_frame_unref(mSoftwareFrame);
+    
+    // Transfer GPU -> CPU.
+    int ret = av_hwframe_transfer_data(mSoftwareFrame, decodedFrame, 0);
+    if (ret < 0)
+        return nullptr;
+
+    ret = av_frame_copy_props(mSoftwareFrame, decodedFrame);
+    if (ret < 0)
+        return nullptr;
+
+    return mSoftwareFrame;
+}
+
+
+AVPixelFormat VideoReaderFFMpeg::GetSourceFormat(AVFrame* sourceFrame)
+{
+    // We do not use mVideoCodecCtx->pix_fmt here because it may be different 
+    // from the actual format of the decoded frame in case of hardware decoding.
+    // For hardware decoding the video context pixel format is something like AV_PIX_FMT_D3D11, 
+    // we have transferred this frame to a software frame in AV_PIX_FMT_NV12 or AV_PIX_FMT_YUV420P.
+
     if (!CanChangeDemosaicing)
     {
-        return videoCodecCtx->pix_fmt;
+        return static_cast<AVPixelFormat>(sourceFrame->format);
     }
 
     switch (mVideoGeometry->Demosaicing)
@@ -2182,7 +2324,7 @@ AVPixelFormat VideoReaderFFMpeg::GetSourceFormat(AVCodecContext* videoCodecCtx)
         return AV_PIX_FMT_BAYER_GBRG8;
     case Demosaicing::None:
     default:
-        return mVideoCodecCtx->pix_fmt;
+        return static_cast<AVPixelFormat>(sourceFrame->format);
     }
 }
 
@@ -2194,7 +2336,7 @@ bool VideoReaderFFMpeg::RescaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, 
     // By this point dstFrame is already allocated.
 
     bool result = true;
-    AVPixelFormat srcFormat = GetSourceFormat(mVideoCodecCtx);
+    AVPixelFormat srcFormat = GetSourceFormat(srcFrame);
 
     int flags = SWS_BILINEAR;
     if (forSummary)
@@ -3534,28 +3676,40 @@ void VideoReaderFFMpeg::LogFileInfo()
     
     // Format
     log->DebugFormat("[Format] - Format name: {0} ({1})", gcnew String(mFormatCtx->iformat->name), gcnew String(mFormatCtx->iformat->long_name));
-    log->DebugFormat("[Format] - Duration (s): {0}", (double)mFormatCtx->duration / AV_TIME_BASE);
-    log->DebugFormat("[Format] - Bit rate (bit/s): {0}", mFormatCtx->bit_rate);
-    log->DebugFormat("[Format] - Start time (microseconds): {0}", mFormatCtx->start_time);
+    log->DebugFormat("[Format] - Duration: {0} s", (double)mFormatCtx->duration / AV_TIME_BASE);
+    log->DebugFormat("[Format] - Bit rate: {0} bit/s", mFormatCtx->bit_rate);
+    log->DebugFormat("[Format] - Start time: {0} µs", mFormatCtx->start_time);
     log->DebugFormat("[Format] - Start timestamp: {0} ({1})", mVideoInfo.FirstTimeStamp, mTimestampOffset);
     LogStreamList(mFormatCtx);
 
     AVStream* stream = mFormatCtx->streams[mVideoStreamIndex];
-    log->DebugFormat("[Stream] - Duration (frames): {0}", stream->nb_frames);
-    log->DebugFormat("[Stream] - Duration (timestamps): {0}", stream->duration == AV_NOPTS_VALUE ? "N/A" : stream->duration.ToString());
+    log->DebugFormat("[Stream] - Duration: {0} frames", stream->nb_frames);
+    log->DebugFormat("[Stream] - Duration: {0} timestamps", stream->duration == AV_NOPTS_VALUE ? "N/A" : stream->duration.ToString());
     log->DebugFormat("[Stream] - Average framerate: {0}", av_q2d(stream->avg_frame_rate));
     log->DebugFormat("[Stream] - TimeBase: {0}/{1}", stream->time_base.num, stream->time_base.den);
     log->DebugFormat("[Stream] - PTS wrap bits: {0}", stream->pts_wrap_bits);
     log->DebugFormat("[Stream] - Average timestamps per seconds: {0}", mVideoInfo.AverageTimeStampsPerSeconds);
 
     // Codec
-    log->DebugFormat("[Codec] - Name: {0}, id:{1}", gcnew String(mVideoCodecCtx->codec->name), (int)mVideoCodecCtx->codec_id);
+    log->DebugFormat("[Codec] - Id:{0}, Name: {1}, Long name:{2}", 
+        (int)mVideoCodecCtx->codec_id, 
+        gcnew String(mVideoCodecCtx->codec->name),
+        gcnew String(mVideoCodecCtx->codec->long_name));
+
     log->DebugFormat("[Codec] - TimeBase: {0}/{1}", mVideoCodecCtx->time_base.num, mVideoCodecCtx->time_base.den);
-    log->DebugFormat("[Codec] - Bit rate (bit/s): {0}", mVideoCodecCtx->bit_rate);
-    log->DebugFormat("[Codec] - Has B Frames: {0}", mVideoCodecCtx->has_b_frames);
-    log->DebugFormat("[Codec] - Width (pixels): {0}", mVideoCodecCtx->width);
-    log->DebugFormat("[Codec] - Height (pixels): {0}", mVideoCodecCtx->height);
+    log->DebugFormat("[Codec] - Bit rate: {0} bit/s", mVideoCodecCtx->bit_rate);
+    log->DebugFormat("[Codec] - Has B Frames: {0}", mVideoCodecCtx->has_b_frames ? "Yes" : "No");
+    log->DebugFormat("[Codec] - Image size: {0}x{1} px", mVideoCodecCtx->width, mVideoCodecCtx->height);
     log->DebugFormat("[Codec] - Image rotation: {0}", mVideoInfo.OriginalRotation.ToString());
+    log->DebugFormat("[Codec] - Hardware decoding: {0}", mHwPixelFormat == AV_PIX_FMT_NONE ? "Not supported" : "Supported");
+    if (mHwPixelFormat != AV_PIX_FMT_NONE)
+    {
+        log->DebugFormat("[Codec] - Hardware pixel format: {0}", GetFrameFormatString(mHwPixelFormat));
+    }
+    else
+    {
+        log->DebugFormat("[Codec] - Software decoding threads: {0}", mVideoCodecCtx->thread_count);
+    }
 
     // Calculated values
     log->DebugFormat("Duration (timestamps): {0}", mVideoInfo.DurationTimeStamps);
@@ -3677,16 +3831,13 @@ String^ VideoReaderFFMpeg::GetFrameTypeString(int type)
 
 String^ VideoReaderFFMpeg::GetFrameFormatString(AVPixelFormat format)
 {
-    switch (format)
-    {
-    case AV_PIX_FMT_YUV420P:
-        return "AV_PIX_FMT_YUV420P";
-    case AV_PIX_FMT_RGB24:
-        return "AV_PIX_FMT_RGB24";
-    case AV_PIX_FMT_YUV411P:
-        return "AV_PIX_FMT_YUV411P";
-    default:
-        return ((int)format).ToString();
-    }
+    // Use libav api to get a string representation of the pixel format.
+    //char buffer[128];
+    //av_get_pix_fmt_string(buffer, sizeof(buffer), format);
+    //String^ formatString = gcnew String(buffer);
+
+    const char* name = av_get_pix_fmt_name(format);
+    String^ formatString = name != nullptr ? gcnew String(name) : nullptr;
+    return formatString;
 }
 #pragma endregion

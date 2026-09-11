@@ -300,6 +300,12 @@ namespace Kinovea.Services
             set { loopPlayback = value; Save(); }
         }
 
+        public bool EnableHardwareDecoding
+        {
+            get { BeforeRead(); return enableHardwareDecoding; }
+            set { enableHardwareDecoding = value; Save(); }
+        }
+
         #endregion
 
         #region Members
@@ -353,6 +359,7 @@ namespace Kinovea.Services
         private bool speedLabelFramerate = false;
         private bool speedLabelInterval = false;
         private bool loopPlayback = true;
+        private bool enableHardwareDecoding = true;
         #endregion
 
         private void Save()
@@ -465,6 +472,7 @@ namespace Kinovea.Services
             writer.WriteElementString("SpeedLabelFramerate", XmlHelper.WriteBoolean(speedLabelFramerate));
             writer.WriteElementString("SpeedLabelInterval", XmlHelper.WriteBoolean(speedLabelInterval));
             writer.WriteElementString("LoopPlayback", XmlHelper.WriteBoolean(loopPlayback));
+            writer.WriteElementString("EnableHardwareDecoding", XmlHelper.WriteBoolean(enableHardwareDecoding));
         }
         
         public void ReadXML(XmlReader reader)
@@ -621,6 +629,9 @@ namespace Kinovea.Services
                         break;
                     case "LoopPlayback":
                         loopPlayback = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
+                        break;
+                    case "EnableHardwareDecoding":
+                        enableHardwareDecoding = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
                         break;
                     default:
                         reader.ReadOuterXml();

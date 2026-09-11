@@ -59,6 +59,7 @@ namespace Kinovea.Root
       this.tabMemory = new System.Windows.Forms.TabPage();
       this.cbCacheInTimeline = new System.Windows.Forms.CheckBox();
       this.tabPlayer = new System.Windows.Forms.TabPage();
+      this.chkLoopPlayback = new System.Windows.Forms.CheckBox();
       this.chkShowFramerate = new System.Windows.Forms.CheckBox();
       this.chkInteractiveTracker = new System.Windows.Forms.CheckBox();
       this.chkEnableFrameSkipping = new System.Windows.Forms.CheckBox();
@@ -85,7 +86,7 @@ namespace Kinovea.Root
       this.cmbImageFormats = new System.Windows.Forms.ComboBox();
       this.lblAspectRatio = new System.Windows.Forms.Label();
       this.chkDeinterlace = new System.Windows.Forms.CheckBox();
-      this.chkLoopPlayback = new System.Windows.Forms.CheckBox();
+      this.chkHardwareDecoding = new System.Windows.Forms.CheckBox();
       ((System.ComponentModel.ISupportInitialize)(this.trkMemoryBuffer)).BeginInit();
       this.tabSubPages.SuspendLayout();
       this.tabGeneral.SuspendLayout();
@@ -223,6 +224,7 @@ namespace Kinovea.Root
       // 
       // tabPlayer
       // 
+      this.tabPlayer.Controls.Add(this.chkHardwareDecoding);
       this.tabPlayer.Controls.Add(this.chkLoopPlayback);
       this.tabPlayer.Controls.Add(this.chkShowFramerate);
       this.tabPlayer.Controls.Add(this.chkInteractiveTracker);
@@ -236,9 +238,21 @@ namespace Kinovea.Root
       this.tabPlayer.Text = "Player";
       this.tabPlayer.UseVisualStyleBackColor = true;
       // 
+      // chkLoopPlayback
+      // 
+      this.chkLoopPlayback.Checked = true;
+      this.chkLoopPlayback.CheckState = System.Windows.Forms.CheckState.Checked;
+      this.chkLoopPlayback.Location = new System.Drawing.Point(18, 72);
+      this.chkLoopPlayback.Name = "chkLoopPlayback";
+      this.chkLoopPlayback.Size = new System.Drawing.Size(369, 20);
+      this.chkLoopPlayback.TabIndex = 69;
+      this.chkLoopPlayback.Text = "Loop playback";
+      this.chkLoopPlayback.UseVisualStyleBackColor = true;
+      this.chkLoopPlayback.CheckedChanged += new System.EventHandler(this.chkLoopPlayback_CheckedChanged);
+      // 
       // chkShowFramerate
       // 
-      this.chkShowFramerate.Location = new System.Drawing.Point(20, 101);
+      this.chkShowFramerate.Location = new System.Drawing.Point(18, 124);
       this.chkShowFramerate.Name = "chkShowFramerate";
       this.chkShowFramerate.Size = new System.Drawing.Size(369, 20);
       this.chkShowFramerate.TabIndex = 68;
@@ -248,7 +262,7 @@ namespace Kinovea.Root
       // 
       // chkInteractiveTracker
       // 
-      this.chkInteractiveTracker.Location = new System.Drawing.Point(20, 75);
+      this.chkInteractiveTracker.Location = new System.Drawing.Point(18, 98);
       this.chkInteractiveTracker.Name = "chkInteractiveTracker";
       this.chkInteractiveTracker.Size = new System.Drawing.Size(369, 20);
       this.chkInteractiveTracker.TabIndex = 67;
@@ -260,7 +274,7 @@ namespace Kinovea.Root
       // 
       this.chkEnableFrameSkipping.Checked = true;
       this.chkEnableFrameSkipping.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.chkEnableFrameSkipping.Location = new System.Drawing.Point(20, 23);
+      this.chkEnableFrameSkipping.Location = new System.Drawing.Point(18, 46);
       this.chkEnableFrameSkipping.Name = "chkEnableFrameSkipping";
       this.chkEnableFrameSkipping.Size = new System.Drawing.Size(369, 20);
       this.chkEnableFrameSkipping.TabIndex = 66;
@@ -270,7 +284,7 @@ namespace Kinovea.Root
       // 
       // chkSyncByMotion
       // 
-      this.chkSyncByMotion.Location = new System.Drawing.Point(20, 153);
+      this.chkSyncByMotion.Location = new System.Drawing.Point(18, 176);
       this.chkSyncByMotion.Name = "chkSyncByMotion";
       this.chkSyncByMotion.Size = new System.Drawing.Size(369, 20);
       this.chkSyncByMotion.TabIndex = 34;
@@ -280,7 +294,7 @@ namespace Kinovea.Root
       // 
       // chkLockSpeeds
       // 
-      this.chkLockSpeeds.Location = new System.Drawing.Point(20, 127);
+      this.chkLockSpeeds.Location = new System.Drawing.Point(18, 150);
       this.chkLockSpeeds.Name = "chkLockSpeeds";
       this.chkLockSpeeds.Size = new System.Drawing.Size(369, 20);
       this.chkLockSpeeds.TabIndex = 33;
@@ -538,17 +552,17 @@ namespace Kinovea.Root
       this.chkDeinterlace.UseVisualStyleBackColor = true;
       this.chkDeinterlace.CheckedChanged += new System.EventHandler(this.chkDeinterlace_CheckedChanged);
       // 
-      // chkLoopPlayback
+      // chkHardwareDecoding
       // 
-      this.chkLoopPlayback.Checked = true;
-      this.chkLoopPlayback.CheckState = System.Windows.Forms.CheckState.Checked;
-      this.chkLoopPlayback.Location = new System.Drawing.Point(20, 49);
-      this.chkLoopPlayback.Name = "chkLoopPlayback";
-      this.chkLoopPlayback.Size = new System.Drawing.Size(369, 20);
-      this.chkLoopPlayback.TabIndex = 69;
-      this.chkLoopPlayback.Text = "Loop playback";
-      this.chkLoopPlayback.UseVisualStyleBackColor = true;
-      this.chkLoopPlayback.CheckedChanged += new System.EventHandler(this.chkLoopPlayback_CheckedChanged);
+      this.chkHardwareDecoding.Checked = true;
+      this.chkHardwareDecoding.CheckState = System.Windows.Forms.CheckState.Checked;
+      this.chkHardwareDecoding.Location = new System.Drawing.Point(18, 20);
+      this.chkHardwareDecoding.Name = "chkHardwareDecoding";
+      this.chkHardwareDecoding.Size = new System.Drawing.Size(369, 20);
+      this.chkHardwareDecoding.TabIndex = 70;
+      this.chkHardwareDecoding.Text = "Enable hardware decoding";
+      this.chkHardwareDecoding.UseVisualStyleBackColor = true;
+      this.chkHardwareDecoding.CheckedChanged += new System.EventHandler(this.chkHardwareDecoding_CheckedChanged);
       // 
       // PreferencePanelPlayer
       // 
@@ -615,5 +629,6 @@ namespace Kinovea.Root
         private System.Windows.Forms.ComboBox cbSmallJump;
         private System.Windows.Forms.CheckBox chkShowFramerate;
         private System.Windows.Forms.CheckBox chkLoopPlayback;
+        private System.Windows.Forms.CheckBox chkHardwareDecoding;
     }
 }
