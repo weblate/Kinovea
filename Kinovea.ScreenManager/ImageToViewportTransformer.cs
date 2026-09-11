@@ -29,11 +29,16 @@ namespace Kinovea.ScreenManager
     /// Converts image coordinates to viewport coordinates and back.
     /// Helpers methods to directly transform points, rectangles, length, etc.
     /// TODO: merge with ImageTransform.
-    /// This is currently only used by the Capture screen.
+    /// This is currently used by:
+    /// - Capture screen.
+    /// - Kinogram
+    /// - Trajectory config window.
+    /// - Trajectory control.
     /// </summary>
     public class ImageToViewportTransformer : IImageToViewportTransformer
     {
         #region Properties
+
         public double Scale
         {
             get { return scale; }
@@ -41,10 +46,15 @@ namespace Kinovea.ScreenManager
         #endregion
         
         #region Members
-        private Point location;
+        private Point location; 
         private double scale;
         #endregion
-    
+
+        /// <summary>
+        /// Create an image-to-viewport transformer.
+        /// Location: Where the frame is rendered in viewport coordinates.
+        /// Scale: the scale at which the frame is rendered compared to the reference size.
+        /// </summary>
         public ImageToViewportTransformer(Point location, double scale)
         {
             this.location = location;

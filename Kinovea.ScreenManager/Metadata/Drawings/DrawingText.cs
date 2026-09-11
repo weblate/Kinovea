@@ -94,7 +94,7 @@ namespace Kinovea.ScreenManager
             get { return textBox; }
             set { textBox = value;}
         }
-        public Control ContainerScreen
+        public Control ViewportControl
         {
             get { return host; }
             set { host = value;}

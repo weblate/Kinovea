@@ -334,6 +334,8 @@ namespace Kinovea.ScreenManager
         // Image
         private ViewportManipulator m_viewportManipulator = new ViewportManipulator();
         private ZoomHelper zoomHelper = new ZoomHelper();
+        private Control viewport; // Control where we draw the frame and drawings.
+        private Rectangle displayRectangle; // Where we draw the frame and drawings, in viewport coordinates.
         private bool m_fill;
         private double m_lastUserStretch = 1.0f;
         private bool m_bShowImageBorder;
@@ -480,7 +482,10 @@ namespace Kinovea.ScreenManager
             BuildContextMenus();
             BuildExportButtons();
             AfterSyncAlphaChange();
-            m_MessageToaster = new MessageToaster(pbSurfaceScreen);
+
+            viewport = pbSurfaceScreen;
+
+            m_MessageToaster = new MessageToaster(viewport);
 
             // Drag & drop between keyframe list and bottom panel.
             trkFrame.KeyframeDropped += trkFrame_KeyframeDropped;
@@ -1311,7 +1316,7 @@ namespace Kinovea.ScreenManager
             ImageResizerNW.Visible = _bShow;
             ImageResizerSE.Visible = _bShow;
             ImageResizerSW.Visible = _bShow;
-            pbSurfaceScreen.Visible = _bShow;
+            viewport.Visible = _bShow;
         }
         private void BuildContextMenus()
         {
@@ -1648,10 +1653,10 @@ namespace Kinovea.ScreenManager
 
                 // Zoom
                 case PlayerScreenCommands.IncreaseZoom:
-                    IncreaseDirectZoom(new Point(pbSurfaceScreen.Width / 2, pbSurfaceScreen.Height / 2));
+                    IncreaseDirectZoom(new Point(displayRectangle.Width / 2, displayRectangle.Height / 2));
                     break;
                 case PlayerScreenCommands.DecreaseZoom:
-                    DecreaseDirectZoom(new Point(pbSurfaceScreen.Width / 2, pbSurfaceScreen.Height / 2));
+                    DecreaseDirectZoom(new Point(displayRectangle.Width / 2, displayRectangle.Height / 2));
                     break;
                 case PlayerScreenCommands.ResetZoom:
                     ResetZoom(true);
@@ -1844,11 +1849,17 @@ namespace Kinovea.ScreenManager
             m_bShowImageBorder = _bShow;
             DoInvalidate();
         }
-        private void DrawImageBorder(Graphics _canvas)
+        private void DrawImageBorder(Graphics g)
         {
             // Draw the border around the screen to mark it as selected.
             // Called back from main drawing routine.
-            _canvas.DrawRectangle(m_PenImageBorder, 0, 0, pbSurfaceScreen.Width - m_PenImageBorder.Width, pbSurfaceScreen.Height - m_PenImageBorder.Width);
+            RectangleF bounds = g.VisibleClipBounds;
+            g.DrawRectangle(
+                m_PenImageBorder, 
+                bounds.X, 
+                bounds.Y,
+                bounds.Width - m_PenImageBorder.Width,
+                bounds.Height - m_PenImageBorder.Width);
         }
         private void DisablePlayAndDraw()
         {
@@ -2629,9 +2640,11 @@ namespace Kinovea.ScreenManager
 
             m_viewportManipulator.Manipulate(rotatedCanvas, panelCenter.Size, targetStretch, m_fill);
 
-            // Update the rendering surface.
+            // Refactoring in progress. Ultimately only the displayRectangle will remain.
             pbSurfaceScreen.Location = m_viewportManipulator.RenderingLocation;
             pbSurfaceScreen.Size = m_viewportManipulator.RenderingSize;
+            displayRectangle.Location = m_viewportManipulator.RenderingLocation;
+            displayRectangle.Size = m_viewportManipulator.RenderingSize;
             ReplaceResizers();
 
             bool cacheInvalidated = false;
@@ -2663,17 +2676,19 @@ namespace Kinovea.ScreenManager
         }
         private void ReplaceResizers()
         {
-            ImageResizerSE.Left = pbSurfaceScreen.Right - (ImageResizerSE.Width / 2);
-            ImageResizerSE.Top = pbSurfaceScreen.Bottom - (ImageResizerSE.Height / 2);
+            // The resizers are drawn on the panel center.
 
-            ImageResizerSW.Left = pbSurfaceScreen.Left - (ImageResizerSW.Width / 2);
-            ImageResizerSW.Top = pbSurfaceScreen.Bottom - (ImageResizerSW.Height / 2);
+            ImageResizerSE.Left = displayRectangle.Right - (ImageResizerSE.Width / 2);
+            ImageResizerSE.Top = displayRectangle.Bottom - (ImageResizerSE.Height / 2);
 
-            ImageResizerNE.Left = pbSurfaceScreen.Right - (ImageResizerNE.Width / 2);
-            ImageResizerNE.Top = pbSurfaceScreen.Top - (ImageResizerNE.Height / 2);
+            ImageResizerSW.Left = displayRectangle.Left - (ImageResizerSW.Width / 2);
+            ImageResizerSW.Top = displayRectangle.Bottom - (ImageResizerSW.Height / 2);
 
-            ImageResizerNW.Left = pbSurfaceScreen.Left - ImageResizerNW.Width / 2;
-            ImageResizerNW.Top = pbSurfaceScreen.Top - ImageResizerNW.Height / 2;
+            ImageResizerNE.Left = displayRectangle.Right - (ImageResizerNE.Width / 2);
+            ImageResizerNE.Top = displayRectangle.Top - (ImageResizerNE.Height / 2);
+
+            ImageResizerNW.Left = displayRectangle.Left - ImageResizerNW.Width / 2;
+            ImageResizerNW.Top = displayRectangle.Top - ImageResizerNW.Height / 2;
         }
         private void ToggleImageFillMode()
         {
@@ -2698,16 +2713,16 @@ namespace Kinovea.ScreenManager
             if (e.Button != MouseButtons.Left)
                 return;
 
-            int iTargetHeight = (ImageResizerSE.Top - pbSurfaceScreen.Top + e.Y);
-            int iTargetWidth = (ImageResizerSE.Left - pbSurfaceScreen.Left + e.X);
+            int iTargetHeight = (ImageResizerSE.Top - displayRectangle.Top + e.Y);
+            int iTargetWidth = (ImageResizerSE.Left - displayRectangle.Left + e.X);
             ManualResizeImage(iTargetWidth, iTargetHeight);
         }
         private void ImageResizerSW_MouseMove(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
-                int iTargetHeight = (ImageResizerSW.Top - pbSurfaceScreen.Top + e.Y);
-                int iTargetWidth = pbSurfaceScreen.Width + (pbSurfaceScreen.Left - (ImageResizerSW.Left + e.X));
+                int iTargetHeight = (ImageResizerSW.Top - displayRectangle.Top + e.Y);
+                int iTargetWidth = displayRectangle.Width + (displayRectangle.Left - (ImageResizerSW.Left + e.X));
                 ManualResizeImage(iTargetWidth, iTargetHeight);
             }
         }
@@ -2715,8 +2730,8 @@ namespace Kinovea.ScreenManager
         {
             if (e.Button == MouseButtons.Left)
             {
-                int iTargetHeight = pbSurfaceScreen.Height + (pbSurfaceScreen.Top - (ImageResizerNW.Top + e.Y));
-                int iTargetWidth = pbSurfaceScreen.Width + (pbSurfaceScreen.Left - (ImageResizerNW.Left + e.X));
+                int iTargetHeight = displayRectangle.Height + (displayRectangle.Top - (ImageResizerNW.Top + e.Y));
+                int iTargetWidth = displayRectangle.Width + (displayRectangle.Left - (ImageResizerNW.Left + e.X));
                 ManualResizeImage(iTargetWidth, iTargetHeight);
             }
         }
@@ -2724,8 +2739,8 @@ namespace Kinovea.ScreenManager
         {
             if (e.Button == MouseButtons.Left)
             {
-                int iTargetHeight = pbSurfaceScreen.Height + (pbSurfaceScreen.Top - (ImageResizerNE.Top + e.Y));
-                int iTargetWidth = (ImageResizerNE.Left - pbSurfaceScreen.Left + e.X);
+                int iTargetHeight = displayRectangle.Height + (displayRectangle.Top - (ImageResizerNE.Top + e.Y));
+                int iTargetWidth = (ImageResizerNE.Left - displayRectangle.Left + e.X);
                 ManualResizeImage(iTargetWidth, iTargetHeight);
             }
         }
@@ -3876,7 +3891,7 @@ namespace Kinovea.ScreenManager
             if (panelCenter.Controls.Contains(drawing.EditBox))
                 return;
 
-            drawing.ContainerScreen = pbSurfaceScreen;
+            drawing.ViewportControl = viewport;
             panelCenter.Controls.Add(drawing.EditBox);
             drawing.EditBox.BringToFront();
             drawing.EditBox.Focus();
@@ -4655,7 +4670,7 @@ namespace Kinovea.ScreenManager
         {
             // Set focus to surfacescreen to enable mouse scroll
             if (!m_FrameServer.Metadata.TextEditingInProgress)
-                pbSurfaceScreen.Focus();
+                viewport.Focus();
         }
 
         /// <summary>
@@ -4763,7 +4778,7 @@ namespace Kinovea.ScreenManager
 
             //log.DebugFormat("Finished rendering frame [{0}].", frameTimestamp);
         }
-        private void FlushDrawingsOnGraphics(Graphics canvas, ImageTransform transformer, int keyFrameIndex, long timestamp)
+        private void FlushDrawingsOnGraphics(Graphics canvas, IImageToViewportTransformer transformer, int keyFrameIndex, long timestamp)
         {
             DistortionHelper distorter = m_FrameServer.Metadata.CalibrationHelper.DistortionHelper;
             CameraTransformer camTransformer = m_FrameServer.Metadata.CameraTransformer;
@@ -4856,6 +4871,7 @@ namespace Kinovea.ScreenManager
 
             // Redraw the annotations on top of the magnified area.
             m_FrameServer.Metadata.Magnifier.TransformCanvas(canvas, transform);
+
             FlushDrawingsOnGraphics(canvas, transform, keyFrameIndex, timestamp);
             canvas.ResetTransform();
             canvas.ResetClip();
@@ -4867,7 +4883,7 @@ namespace Kinovea.ScreenManager
             // go through the Windows message pump, force the refresh, etc.
             // Invalidate is asynchronous and several Invalidate calls will be grouped together.
             // Only one repaint will be done.
-            pbSurfaceScreen.Invalidate();
+            viewport.Invalidate();
         }
         public void InvalidateFromMenu()
         {
@@ -5645,7 +5661,7 @@ namespace Kinovea.ScreenManager
         }
         private void SetCursor(Cursor _cur)
         {
-            pbSurfaceScreen.Cursor = _cur;
+            viewport.Cursor = _cur;
         }
         #endregion
 
@@ -5835,7 +5851,7 @@ namespace Kinovea.ScreenManager
         {
             AbstractDrawing drawing = m_FrameServer.Metadata.HitDrawing;
 
-            FormConfigureVisibility f = new FormConfigureVisibility(drawing, pbSurfaceScreen);
+            FormConfigureVisibility f = new FormConfigureVisibility(drawing, viewport);
             FormsHelper.Locate(f);
             f.ShowDialog();
             f.Dispose();

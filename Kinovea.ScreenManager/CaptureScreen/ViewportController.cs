@@ -665,7 +665,7 @@ namespace Kinovea.ScreenManager
             if(label == null)
                 return;
                 
-            label.ContainerScreen = view;
+            label.ViewportControl = view;
             view.Controls.Add(label.EditBox);
             label.EditBox.BringToFront();
             label.EditBox.Focus();

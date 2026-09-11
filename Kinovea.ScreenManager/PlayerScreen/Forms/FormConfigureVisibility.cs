@@ -17,15 +17,15 @@ namespace Kinovea.ScreenManager
     /// </summary>
     public partial class FormConfigureVisibility : Form
     {
-        private Control surfaceScreen;
+        private Control viewport;
         private AbstractDrawing drawing;
         private InfosFading memoFading;
         private bool manualClose;
 
-        public FormConfigureVisibility(AbstractDrawing drawing, Control screen)
+        public FormConfigureVisibility(AbstractDrawing drawing, Control viewport)
         {
             this.drawing = drawing;
-            this.surfaceScreen = screen;
+            this.viewport = viewport;
             this.memoFading = drawing.InfosFading.Clone();
 
             InitializeComponent();
@@ -55,19 +55,19 @@ namespace Kinovea.ScreenManager
         private void nudMax_ValueChanged(object sender, EventArgs e)
         {
             drawing.InfosFading.MasterFactor = (float)nudMax.Value / 100;
-            surfaceScreen.Invalidate();
+            viewport.Invalidate();
         }
 
         private void nudOpaque_ValueChanged(object sender, EventArgs e)
         {
             drawing.InfosFading.OpaqueFrames = (int)nudOpaque.Value;
-            surfaceScreen.Invalidate();
+            viewport.Invalidate();
         }
 
         private void nudFading_ValueChanged(object sender, EventArgs e)
         {
             drawing.InfosFading.FadingFrames = (int)nudFading.Value;
-            surfaceScreen.Invalidate();
+            viewport.Invalidate();
         }
 
         #region OK/Cancel/Exit
@@ -94,7 +94,7 @@ namespace Kinovea.ScreenManager
         private void Cancel()
         {
             drawing.InfosFading = memoFading.Clone();
-            surfaceScreen.Invalidate();
+            viewport.Invalidate();
         }
         #endregion
     }
