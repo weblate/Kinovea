@@ -111,6 +111,13 @@ void VideoReaderFFMpeg::Close()
     AVFrame* pFilteredFrame = mFilteredFrame;
     av_frame_free(&pFilteredFrame);
 
+    if (mScalingCtx != nullptr)
+    {
+        SwsContext* pScalingCtx = mScalingCtx;
+        sws_freeContext(pScalingCtx);
+        mScalingCtx = nullptr;
+    }
+
     if (mVideoCodecCtx != nullptr)
     {
         AVCodecContext* pVideoCodecCtx = mVideoCodecCtx;
@@ -2455,8 +2462,8 @@ AVPixelFormat VideoReaderFFMpeg::GetSourceFormat(AVFrame* sourceFrame)
 
 bool VideoReaderFFMpeg::RescaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat, bool forSummary)
 {
-    // This variant doesn't support deinterlacing and uses the old sws_scale API.
-    // It is faster than the new one.
+    // This variant doesn't support deinterlacing and uses the sws_scale API.
+    // It is often faster than the one based on filter graph.
     // By this point dstFrame is already allocated.
 
     bool result = true;
@@ -2468,11 +2475,21 @@ bool VideoReaderFFMpeg::RescaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, 
         flags = SWS_POINT;
     }
 
-    // TODO: keep the conext around and only recreate it when the values change.
-    SwsContext* scalingCtx = sws_getContext(
-        mVideoCodecCtx->width, mVideoCodecCtx->height, srcFormat,
-        dstWidth, dstHeight, dstPixelFormat,
-        flags, nullptr, nullptr, nullptr);
+    if (mScalingCtx == nullptr ||
+        mMemoSrcWidth != srcFrame->width || mMemoSrcHeight != srcFrame->height || mMemoSrcFormat != srcFormat ||
+        mMemoDstWidth != dstWidth || mMemoDstHeight != dstHeight)
+    {
+        bool created = CreateSwsContext(
+            srcFrame->width, srcFrame->height, srcFormat, 
+            dstWidth, dstHeight, dstPixelFormat, 
+            flags);
+
+        if (!created)
+        {
+            log->Error("RescaleAndConvert Error : CreateSwsContext failed.");
+            return false;
+        }
+    }
 
     const uint8_t* const* srcSlice = srcFrame->data;
     int* srcStride = srcFrame->linesize;
@@ -2483,7 +2500,7 @@ bool VideoReaderFFMpeg::RescaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, 
 
     try
     {
-        sws_scale(scalingCtx, srcSlice, srcStride, srcSliceY, srcSliceH, dst, dstStride);
+        sws_scale_frame(mScalingCtx, dstFrame, srcFrame);
     }
     catch (Exception^)
     {
@@ -2491,10 +2508,76 @@ bool VideoReaderFFMpeg::RescaleAndConvert(AVFrame* srcFrame, AVFrame* dstFrame, 
         log->Error("RescaleAndConvert Error : sws_scale failed.");
     }
 
-    sws_freeContext(scalingCtx);
-
     return result;
 }
+
+
+bool VideoReaderFFMpeg::CreateSwsContext(
+    int srcWidth, int srcHeight, AVPixelFormat srcPixelFormat,
+    int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat, 
+    int flags)
+{
+    // There are several ways to use the sws scaling API.
+    // 1. old system, calling sws_getContext.
+    // We pass the frames geometry and it initializes the scaling context by itself,
+    // and then we call sws_scale.
+    // This never uses threading.
+    // 2. old system with manual init.
+    // We call sws_alloc_context() and then set individual options,
+    // "srcw", "srch", "src_format", "dstw", etc.
+    // Then we call sws_init_context(), and then call sws_scale.
+    // This works but setting the thread count here does nothing, it's still single-threaded.
+    // 3. using dynamic context, calling sws_scale_frame instead of sws_scale.
+    // In this case we must have already allocated and configured the destination frame.
+    // ffmpeg will automatically detect it and use its size/format.
+    // With this approach we can use manual init and set the number of threads and it works.
+    // In this case we don't even need to set the width/height or call sws_init_context at all.
+    // 4. We can also explicitly call sws_init_context. -> ffmpeg will detect that it was 
+    // manually initialized and route it through legacy frame API, this should also be multi-threaded
+    // but there is not much point to it.
+    // 
+    // We use technique 3.
+    // Just set the number of thread here, don't call sws_init_context, and call sws_scale_frame for scaling.
+    // We don't bother about source/destination geometry here, ffmpeg will setup the context automatically.
+
+
+    int threadCount = 0; // 0 = auto.
+    mScalingCtx = sws_alloc_context();
+    
+    //av_opt_set_int(mScalingCtx, "srcw", mVideoCodecCtx->width, 0);
+    //av_opt_set_int(mScalingCtx, "srch", mVideoCodecCtx->height, 0);
+    //av_opt_set_int(mScalingCtx, "src_format", srcPixelFormat, 0);
+    //av_opt_set_int(mScalingCtx, "dstw", dstWidth, 0);
+    //av_opt_set_int(mScalingCtx, "dsth", dstHeight, 0);
+    //av_opt_set_int(mScalingCtx, "dst_format", dstPixelFormat, 0);
+    av_opt_set_int(mScalingCtx, "sws_flags", flags, 0);
+    av_opt_set_int(mScalingCtx, "threads", threadCount, 0);
+
+    //int res = sws_init_context(mScalingCtx, nullptr, nullptr);
+    //if (res < 0)
+    //{
+    //    LogFFMpegError("sws_init_context", res);
+    //    sws_freeContext(mScalingCtx);
+    //    mScalingCtx = nullptr;
+    //    return false;
+    //}
+
+    // Auto initialization. This is always single-threaded.
+    //mScalingCtx = sws_getContext(
+    //    srcWidth, srcHeight, srcPixelFormat,
+    //dstWidth, dstHeight, dstPixelFormat,
+    //    flags, nullptr, nullptr, nullptr);
+
+    // Remember the settings to detect if we need to recreate the context.
+    mMemoSrcWidth = srcWidth;
+    mMemoSrcHeight = srcHeight;
+    mMemoSrcFormat = srcPixelFormat;
+    mMemoDstWidth = dstWidth;
+    mMemoDstHeight = dstHeight;
+    return true;
+}
+
+
 
 bool VideoReaderFFMpeg::RescaleAndConvert2(AVFrame* srcFrame, AVFrame* dstFrame, int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat, bool deinterlace)
 {
@@ -2504,9 +2587,9 @@ bool VideoReaderFFMpeg::RescaleAndConvert2(AVFrame* srcFrame, AVFrame* dstFrame,
     
     // Recreate the graph if needed.
     if (!mFilterGraph ||
-        mFilterSrcWidth != srcWidth || mFilterSrcHeight != srcHeight || mFilterSrcFormat != srcPixelFormat ||
-        mFilterDstWidth != dstWidth || mFilterDstHeight != dstHeight ||
-        mFilterDeinterlace != deinterlace)
+        mMemoSrcWidth != srcWidth || mMemoSrcHeight != srcHeight || mMemoSrcFormat != srcPixelFormat ||
+        mMemoDstWidth != dstWidth || mMemoDstHeight != dstHeight ||
+        mMemoDeinterlace != deinterlace)
     {
         AVRational sar = srcFrame->sample_aspect_ratio;
         bool created = CreateVideoFilterGraph(
@@ -2612,12 +2695,12 @@ void VideoReaderFFMpeg::FreeVideoFilterGraph()
     mFilterSource = nullptr;
     mFilterSink = nullptr;
 
-    mFilterSrcWidth = 0;
-    mFilterSrcHeight = 0;
-    mFilterSrcFormat = AV_PIX_FMT_NONE;
+    mMemoSrcWidth = 0;
+    mMemoSrcHeight = 0;
+    mMemoSrcFormat = AV_PIX_FMT_NONE;
 
-    mFilterDstWidth = 0;
-    mFilterDstHeight = 0;
+    mMemoDstWidth = 0;
+    mMemoDstHeight = 0;
 }
 
 
@@ -2799,12 +2882,12 @@ bool VideoReaderFFMpeg::CreateVideoFilterGraph(
     }
     
     // Recall the parameters so we can check if the filter graph needs to be rebuilt.
-    mFilterSrcWidth = srcWidth;
-    mFilterSrcHeight = srcHeight;
-    mFilterSrcFormat = srcPixelFormat;
-    mFilterDstWidth = dstWidth;
-    mFilterDstHeight = dstHeight;
-    mFilterDeinterlace = deinterlace;
+    mMemoSrcWidth = srcWidth;
+    mMemoSrcHeight = srcHeight;
+    mMemoSrcFormat = srcPixelFormat;
+    mMemoDstWidth = dstWidth;
+    mMemoDstHeight = dstHeight;
+    mMemoDeinterlace = deinterlace;
     return true;
 }
 
@@ -3801,7 +3884,7 @@ void VideoReaderFFMpeg::LogFileInfo()
     // Format
     log->DebugFormat("[Format] - Format name: {0} ({1})", gcnew String(mFormatCtx->iformat->name), gcnew String(mFormatCtx->iformat->long_name));
     log->DebugFormat("[Format] - Duration: {0} s", (double)mFormatCtx->duration / AV_TIME_BASE);
-    log->DebugFormat("[Format] - Bit rate: {0} bit/s", mFormatCtx->bit_rate);
+    log->DebugFormat("[Format] - Bit rate: {0:0.00} Mbit/s", mFormatCtx->bit_rate / 1e6);
     log->DebugFormat("[Format] - Start time: {0} µs", mFormatCtx->start_time);
     log->DebugFormat("[Format] - Start timestamp: {0} ({1})", mVideoInfo.FirstTimeStamp, mTimestampOffset);
     LogStreamList(mFormatCtx);
@@ -3835,10 +3918,10 @@ void VideoReaderFFMpeg::LogFileInfo()
     }
 
     // Calculated values
-    log->DebugFormat("Duration (timestamps): {0}", mVideoInfo.DurationTimeStamps);
+    log->DebugFormat("Duration: {0} timestamps", mVideoInfo.DurationTimeStamps);
     log->DebugFormat("Average Fps: {0}", mVideoInfo.FramesPerSeconds);
-    log->DebugFormat("Average Frame Interval (ms): {0}", mVideoInfo.FrameIntervalMilliseconds);
-    log->DebugFormat("Average Timestamps per frame: {0}", mVideoInfo.AverageTimeStampsPerFrame);
+    log->DebugFormat("Average Frame Interval: {0:0.000} ms", mVideoInfo.FrameIntervalMilliseconds);
+    log->DebugFormat("Average Timestamps per frame: {0:0.000}", mVideoInfo.AverageTimeStampsPerFrame);
     log->DebugFormat("Pixel Aspect Ratio: {0:0.000}", mVideoInfo.PixelAspectRatio);
     log->DebugFormat("---------------------------------------------------");
 }

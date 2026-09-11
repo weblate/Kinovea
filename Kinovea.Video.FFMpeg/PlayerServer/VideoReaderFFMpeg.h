@@ -283,6 +283,7 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         int mVideoStreamIndex;
         AVCodecContext* mVideoCodecCtx;
         static const enum AVPixelFormat sConvertPixelFormat = AV_PIX_FMT_BGRA;
+        SwsContext* mScalingCtx;
 
         // The frame-domain timestamp of the frame we last added to the cache.
         // This is not necessarily the frame that the player is currently showing.
@@ -373,12 +374,12 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         static bool mCopyFilteredFrame = true;
 
         // Active configuration of the filter graph.
-        int mFilterSrcWidth = 0;
-        int mFilterSrcHeight = 0;
-        AVPixelFormat mFilterSrcFormat = AV_PIX_FMT_NONE;
-        int mFilterDstWidth = 0;
-        int mFilterDstHeight = 0;
-        bool mFilterDeinterlace = false;
+        int mMemoSrcWidth = 0;
+        int mMemoSrcHeight = 0;
+        AVPixelFormat mMemoSrcFormat = AV_PIX_FMT_NONE;
+        int mMemoDstWidth = 0;
+        int mMemoDstHeight = 0;
+        bool mMemoDeinterlace = false;
 
         //------------------------
         // Debugging
@@ -400,12 +401,17 @@ namespace Kinovea { namespace Video { namespace FFMpeg
 
         void DataInit();
         
-        /// Load the video file and initialize the FFMpeg context.
+        /// Open the video file and initialize the FFmpeg contexts.
         OpenVideoResult Load(String^ filePath, bool forSummary);
         
+        /// Look for a hardware decoder for the given codec.
+        /// If found initialize the codec context and return true.
+        /// If anything fails, return false and leave the codec context untouched.
+        bool TryInitializeHardwareDecoder(AVCodecID codecId, const AVStream* videoStream, AVCodecContext*& videoCodecCtx);
+        
+        /// Initialize the software decoder for the given codec.
         OpenVideoResult InitSoftwareDecoder(AVCodecID codecId, const AVStream* videoStream, bool forSummary, AVCodecContext*& videoCodecCtx);
 
-        bool TryInitializeHardwareDecoder(AVCodecID codecId, const AVStream* videoStream, AVCodecContext*& videoCodecCtx);
         
         void CleanupHardwareDecoderContext(AVCodecContext*& videoCodecCtx);
 
@@ -480,6 +486,12 @@ namespace Kinovea { namespace Video { namespace FFMpeg
             int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat,
             bool forSummary);
 
+
+        bool CreateSwsContext(
+            int srcWidth, int srcHeight, AVPixelFormat srcPixelFormat,
+            int dstWidth, int dstHeight, AVPixelFormat dstPixelFormat,
+            int flags);
+
         /// Convert and scale the decoded frame to the final pixel format and size.
         /// dstFrame must already be allocated.
         /// Uses the new filter graph pipeline.
@@ -496,7 +508,7 @@ namespace Kinovea { namespace Video { namespace FFMpeg
         void FreeVideoFilterGraph();
 
         /// Get the source format of decoded frames.
-        /// This is just ctx->pix_fmt unless the user has specified a demosaicing option.
+        /// This is just frame->format unless the user has specified a demosaicing option.
         AVPixelFormat GetSourceFormat(AVFrame* sourceFrame);
 
         AVFrame* GetSoftwareFrame(AVFrame* decodedFrame);
