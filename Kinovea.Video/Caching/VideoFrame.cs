@@ -23,6 +23,10 @@ using System.Drawing;
 
 namespace Kinovea.Video
 {
+    /// <summary>
+    /// Frame type used in the player.
+    /// For capture we have a different type Kinovea.Pipeline.Frame.
+    /// </summary>
     public class VideoFrame
     {
         /// <summary>

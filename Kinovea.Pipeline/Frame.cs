@@ -6,8 +6,13 @@ using System.Text;
 namespace Kinovea.Pipeline
 {
     /// <summary>
+    /// Frame type used in capture.
     /// Simple byte buffer. Format agnostic.
     /// The whole buffer might not be filled with payload.
+    /// The camera managers produce the payload, not directly frames.
+    /// Frames are always built by stuffing the camera-produced payload into an 
+    /// already allocated Frame object.
+    /// For the player frames we have a different type in Kinovea.Video.VideoFrame.
     /// </summary>
     public class Frame
     {
@@ -15,8 +20,16 @@ namespace Kinovea.Pipeline
         
         public int PayloadLength { get; set; }
 
+        /// <summary>
+        /// Monotonically increasing and sequential frame id. 
+        /// This id is set by the consumer, when pushing the frame
+        /// to the delay buffer.
+        /// </summary>
         public long FrameId { get; set; }
 
+        /// <summary>
+        /// Create a new frame and allocate the buffer.
+        /// </summary>
         public Frame(int bufferSize)
         {
             this.Buffer = new byte[bufferSize];
