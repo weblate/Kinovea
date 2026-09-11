@@ -290,6 +290,7 @@ namespace Kinovea.ScreenManager
             if (cacheSnapshot.Version <= lastCacheSnapshot)
                 return;
 
+            log.DebugFormat("Updating cache snapshot: {0}", cacheSnapshot);
             this.cacheSnapshot = cacheSnapshot;
             lastCacheSnapshot = cacheSnapshot.Version;
             Invalidate();
@@ -452,11 +453,7 @@ namespace Kinovea.ScreenManager
                 }
             }
 
-            // Draw the cache in the background.
-            if (showCacheSnapshot && cacheSnapshot != null)
-            {
-                DrawCacheSnapshot(canvas);
-            }
+            
 
             // Then main cursor(s), then ranges, then frames.
             if (isCommonTimeline)
@@ -480,7 +477,11 @@ namespace Kinovea.ScreenManager
 
             DrawFrameMark(canvas, syncPointMark);
 
-            
+            // Draw the cache.
+            if (showCacheSnapshot && cacheSnapshot != null)
+            {
+                DrawCacheSnapshot(canvas);
+            }
         }
 
         private void DrawFrameTick(Graphics canvas, int x)
