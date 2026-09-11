@@ -431,6 +431,7 @@ namespace Kinovea.ScreenManager
         /// <summary>
         /// The ratio between the capture framerate and the video framerate.
         /// This relates the video time to real time.
+        /// e.g: File is 30 fps but was filmed at 300 fps, this should be 10x.
         /// </summary>
         public double HighSpeedFactor
         {

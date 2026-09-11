@@ -60,14 +60,18 @@ namespace Kinovea.ScreenManager
             // That mapping is used to calibrate time display. Here we are only concerned with changing the 
             // output framerate with regards to the input framerate.
             string inputOutputRate = "";
-            if (player.view.SpeedPercentage < 100)
-                inputOutputRate = string.Format("{0:0.##}%", player.view.SpeedPercentage);
+            if (player.view.SpeedFactorNominal < 1.0)
+            {
+                inputOutputRate = string.Format("{0:0.##}%", player.view.SpeedFactorNominal * 100);
+            }
             else
-                inputOutputRate = string.Format("{0:0.##}x", player.view.SpeedPercentage / 100.0);
+            {
+                inputOutputRate = string.Format("{0:0.##}x", player.view.SpeedFactorNominal);
+            }
 
             checkSlowMotion.Text = string.Format(ScreenManagerLang.FormConfigureExportVideo_UseCurrentPlaybackSpeed, inputOutputRate);
 
-            bool isNominal = player.view.SpeedPercentage == 100;
+            bool isNominal = player.view.SpeedFactorNominal == 1.0;
             checkSlowMotion.Checked = isNominal;
             checkSlowMotion.Enabled = !isNominal;
 

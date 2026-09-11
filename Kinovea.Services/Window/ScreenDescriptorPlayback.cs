@@ -78,7 +78,7 @@ namespace Kinovea.Services
         /// Speed at which to set the speed slider, whether the video is auto-play or not.
         /// This is relative to the nominal playback speed, not real time.
         /// </summary>
-        public double SpeedPercentage { get; set; }
+        public double SpeedFactorNominal { get; set; }
 
         /// <summary>
         /// Whether the video should be stretched to fill the player screen estate.
@@ -118,7 +118,7 @@ namespace Kinovea.Services
             Id = Guid.NewGuid();
             FullPath = "";
             Autoplay = false;
-            SpeedPercentage = 100;
+            SpeedFactorNominal = 1.0;
             Stretch = false;
             IsReplayWatcher = false;
             RecoveryLastSave = DateTime.MinValue;
@@ -134,7 +134,7 @@ namespace Kinovea.Services
             clone.Id = this.Id;
             clone.FullPath = this.FullPath;
             clone.Autoplay = this.Autoplay;
-            clone.SpeedPercentage = this.SpeedPercentage;
+            clone.SpeedFactorNominal = this.SpeedFactorNominal;
             clone.Stretch = this.Stretch;
             clone.IsReplayWatcher = this.IsReplayWatcher;
             clone.RecoveryLastSave = this.RecoveryLastSave;
@@ -160,10 +160,10 @@ namespace Kinovea.Services
                         Autoplay = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
                         break;
                     case "SpeedPercentage":
-                        float speed;
-                        bool read = float.TryParse(reader.ReadElementContentAsString(), NumberStyles.Any, CultureInfo.InvariantCulture, out speed);
+                        float speedPercentage;
+                        bool read = float.TryParse(reader.ReadElementContentAsString(), NumberStyles.Any, CultureInfo.InvariantCulture, out speedPercentage);
                         if (read)
-                            this.SpeedPercentage = speed;
+                            this.SpeedFactorNominal = speedPercentage / 100.0;
                         break;
                     case "Stretch":
                         Stretch = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
@@ -193,7 +193,7 @@ namespace Kinovea.Services
         {
             w.WriteElementString("FullPath", FullPath);
             w.WriteElementString("Autoplay", XmlHelper.WriteBoolean(Autoplay));
-            w.WriteElementString("SpeedPercentage", XmlHelper.WriteFloat((float)SpeedPercentage));
+            w.WriteElementString("SpeedPercentage", XmlHelper.WriteFloat((float)SpeedFactorNominal * 100));
             w.WriteElementString("Stretch", XmlHelper.WriteBoolean(Stretch));
             w.WriteElementString("IsReplayWatcher", XmlHelper.WriteBoolean(IsReplayWatcher));
             w.WriteElementString("SidePanelSplitterRatio", XmlHelper.WriteFloat(SidePanelSplitterRatio));

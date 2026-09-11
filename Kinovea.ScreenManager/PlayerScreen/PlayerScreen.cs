@@ -340,10 +340,10 @@ namespace Kinovea.ScreenManager
                     return 40;
             }
         }
-        public double RealtimePercentage
+        public double SpeedFactorReal
         {
-            get { return view.RealtimePercentage; }
-            set { view.RealtimePercentage = value;}
+            get { return view.SpeedFactorReal; }
+            set { view.SpeedFactorReal = value;}
         }
 
         /// <summary>
@@ -760,7 +760,7 @@ namespace Kinovea.ScreenManager
             // UI elements don't necessarily update the screen descriptor as soon as something changes.
             var sd = view.ScreenDescriptor;
             sd.Stretch = view.ImageFill;
-            sd.SpeedPercentage = view.SpeedPercentage;
+            sd.SpeedFactorNominal = view.SpeedFactorNominal;
             if (!sd.IsReplayWatcher)
             {
                sd.FullPath = frameServer.VideoReader.FilePath;

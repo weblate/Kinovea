@@ -987,7 +987,7 @@ namespace Kinovea.ScreenManager
             sdp.IsReplayWatcher = true;
             sdp.Autoplay = true;
             sdp.Stretch = true;
-            sdp.SpeedPercentage = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
+            sdp.SpeedFactorNominal = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
             LoaderVideo.LoadVideoInScreen(this, path, index, sdp);
         }
         private void Player_Loaded(object sender, EventArgs e)
@@ -3233,7 +3233,7 @@ namespace Kinovea.ScreenManager
                 sdp.IsReplayWatcher = true;
                 sdp.Autoplay = true;
                 sdp.Stretch = true;
-                sdp.SpeedPercentage = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
+                sdp.SpeedFactorNominal = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
                 LoaderVideo.LoadVideoInScreen(this, path, sdp);
             }
             else
@@ -3261,7 +3261,7 @@ namespace Kinovea.ScreenManager
                     sdp.IsReplayWatcher = false;
                     sdp.Autoplay = false;
                     sdp.Stretch = false;
-                    sdp.SpeedPercentage = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
+                    sdp.SpeedFactorNominal = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
 
                     // Here we detect the case where we load a video in an existing player screen.
                     // We keep the existing screen descriptor as much as possible.
@@ -3284,7 +3284,7 @@ namespace Kinovea.ScreenManager
 
                             // Update to latest state.
                             sdp.Stretch = view.ImageFill;
-                            sdp.SpeedPercentage = view.SpeedPercentage;
+                            sdp.SpeedFactorNominal = view.SpeedFactorNominal;
                         }
                     }
 

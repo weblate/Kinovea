@@ -713,23 +713,26 @@ namespace Kinovea.ScreenManager
         #endregion
 
         #region Capture framerate
-        public static double ComputeFileFrameInterval(double interval)
+        public static double ApplyFrameRateReplacement(double interval)
         {
-            // If the capture happens too fast or too slow for a regular player, set the video metadata to a more sensible framerate.
-            // This avoids erratic playback because the player can't cope with the framerate, drawback: prevents review in real time.
+            // If the capture happens too fast or too slow for a regular player, set the video metadata
+            // to a more sensible framerate.
+            // This avoids erratic playback because the player can't cope with the framerate,
+            // drawback: prevents review in real time.
             double hrft = PreferencesManager.CapturePreferences.HighspeedRecordingFramerateThreshold;
+            double hrfo = PreferencesManager.CapturePreferences.HighspeedRecordingFramerateOutput;
             double srft = PreferencesManager.CapturePreferences.SlowspeedRecordingFramerateThreshold;
+            double srfo = PreferencesManager.CapturePreferences.SlowspeedRecordingFramerateOutput;
+            
             double fps = 1000.0 / interval;
             double fileInterval = interval;
             if (fps >= hrft)
             {
-                double hrfo = PreferencesManager.CapturePreferences.HighspeedRecordingFramerateOutput;
                 fileInterval = 1000.0 / hrfo;
                 log.DebugFormat("High speed recording detected, {0:0.###} fps. Forcing output framerate to {1:0.###} fps.", fps, hrfo);
             }
             else if (fps <= srft)
             {
-                double srfo = PreferencesManager.CapturePreferences.SlowspeedRecordingFramerateOutput;
                 fileInterval = 1000.0 / srfo;
                 log.DebugFormat("Slow speed recording detected, {0:0.###} fps. Forcing output framerate to {1:0.###} fps.", fps, srfo);
             }

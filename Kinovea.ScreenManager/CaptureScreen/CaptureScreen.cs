@@ -1900,7 +1900,7 @@ namespace Kinovea.ScreenManager
 
             metadata.CalibrationHelper.CaptureFramesPerSecond = setCaptureFramerate ? pipelineManager.Frequency : cameraGrabber.Framerate;
             double userInterval = 1000.0 / cameraGrabber.Framerate;
-            metadata.BaselineFrameInterval = CalibrationHelper.ComputeFileFrameInterval(userInterval);
+            metadata.BaselineFrameInterval = CalibrationHelper.ApplyFrameRateReplacement(userInterval);
             bool setUserInterval = userInterval != metadata.BaselineFrameInterval;
 
             // Set the time origin to match the real time of the recording trigger.
@@ -1966,7 +1966,7 @@ namespace Kinovea.ScreenManager
                 framerate = 25;
 
             double interval = 1000.0 / framerate;
-            double fileInterval = CalibrationHelper.ComputeFileFrameInterval(interval);
+            double fileInterval = CalibrationHelper.ApplyFrameRateReplacement(interval);
 
             EncodingQuality quality = PreferencesManager.CapturePreferences.EncodingQuality;
 

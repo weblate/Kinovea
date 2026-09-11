@@ -316,7 +316,7 @@ namespace Kinovea.Services
         private bool enableFiltering = true;
         private bool enableHighSpeedDerivativesSmoothing = true;
         private bool enableCustomToolsDebugMode = false;
-        private float defaultReplaySpeed = 100;
+        private float defaultReplaySpeed = 1.0f;
         private bool detectImageSequences = true;
         private int preloadKeyframes = 20;
         private string playbackKVA;

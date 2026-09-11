@@ -14,49 +14,30 @@ namespace Kinovea.ScreenManager
     public class TimeMapper
     {
         #region Properties
-        /// <summary>
-        /// The nominal frame interval (ms) for playback purposes, as specified in the file.
-        /// </summary>
-        public double FileInterval 
-        {
-            get { return fileInterval; }
-            set { fileInterval = value; }
-        }
-
-        /// <summary>
-        /// The user override to the nominal frame interval (ms).
-        /// </summary>
-        public double UserInterval
-        {
-            get { return userInterval; }
-            set { userInterval = value; }
-        }
-
+        
         /// <summary>
         /// The real time interval (ms) between captured frames, provided by the user.
         /// </summary>
         public double CaptureInterval
         {
             get { return captureInterval; }
-            set { captureInterval = value; }
         }
         #endregion
 
         #region Members
         private const double epsilon = 1e-3;
 
-        // Slider input values.
-        // This is an arbitrary range.
+        // Slider input values. Arbitrary range.
         private double maxInput = 1000;
         private double midInput = 500;
         private double safeMinInput = 1;
 
-        // Speed factor values. 1 = file baseline.
+        // Speed factor values. 1.0 = file baseline.
         private double maxFactor = 10;
         private double safeMinFactor = 0.002;
 
-        private double fileInterval = 40; 
-        private double userInterval = 40;
+        private double fileInterval = 40;       // Nominal frame interval(ms) as specified in the file.
+        private double userInterval = 40;       // User override to the nominal frame interval (ms).
         private double captureInterval = 40;
         #endregion
 
@@ -75,6 +56,13 @@ namespace Kinovea.ScreenManager
             this.safeMinFactor = epsilon * maxFactor;
         }
 
+        public void UpdateTimebase(double fileInterval, double userInterval, double highSpeedFactor)
+        {
+            this.fileInterval = fileInterval;
+            this.userInterval = userInterval;
+            this.captureInterval = userInterval / highSpeedFactor;
+        }
+
         /// <summary>
         /// Returns the speed factor wrt to file-nominal speed, for the input value.
         /// </summary>
@@ -86,10 +74,22 @@ namespace Kinovea.ScreenManager
         /// <summary>
         /// Returns the frame interval in ms, to be used by the playback timer.
         /// </summary>
-        public double GetInterval(double input)
+        public double GetPlaybackFrameInterval(double input)
         {
-            double speedFactor = MapInput(input);
-            return userInterval / speedFactor;
+            double speedFactor = MapInputReal(input);
+            double interval = captureInterval / speedFactor;
+            return interval;
+        }
+
+        /// <summary>
+        /// Returns the frame rate based on real time speed factor, for the input value.
+        /// Suitable for display purposes.
+        /// </summary>
+        public double GetRealFrameRate(double input)
+        {
+            double speedFactor = MapInputReal(input);
+            double interval = captureInterval / speedFactor;
+            return 1000.0 / interval;
         }
 
         /// <summary>
@@ -112,12 +112,17 @@ namespace Kinovea.ScreenManager
             return MapSpeedFactor(speedFactor);
         }
 
+        public double GetInputFromSpeedFactorReal(double speedFactorReal)
+        {
+            return MapSpeedFactorReal(speedFactorReal);
+        }
+
         /// <summary>
         /// Returns the slider input value corresponding to file-nominal 1x.
         /// </summary>
         public double GetInputForNominalSpeed()
         {
-            return MapSpeedFactor(1);
+            return MapSpeedFactor(captureInterval / userInterval);
         }
 
         /// <summary>

@@ -224,7 +224,7 @@ namespace Kinovea.ScreenManager
             log.DebugFormat("Replay watcher is about to load a video: {0}.", Path.GetFileName(path));
 
             // Update the descriptor with the speed from the UI.
-            screenDescriptor.SpeedPercentage = player.view.SpeedPercentage;
+            screenDescriptor.SpeedFactorNominal = player.view.SpeedFactorNominal;
 
             if (player.IsWaitingForIdle)
             {

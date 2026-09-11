@@ -120,27 +120,23 @@ namespace Kinovea.ScreenManager
         {
             get
             {
-                return timeMapper.GetInterval(sldrSpeed.Value);
+                return timeMapper.GetPlaybackFrameInterval(sldrSpeed.Value);
             }
         }
 
         /// <summary>
-        /// Returns the playback speed as a percentage of the real time speed of the captured action.
-        /// This is not the same as the raw slider percentage when the video is not real time.
+        /// Returns the speed factor over real time (scene time).
         /// </summary>
-        public double RealtimePercentage
+        public double SpeedFactorReal
         {
             get
             {
-                return timeMapper.GetSpeedFactorReal(sldrSpeed.Value) * 100;
+                return timeMapper.GetSpeedFactorReal(sldrSpeed.Value);
             }
             set
             {
-                // This happens only in the context of synching
-                // when the other video changed its speed percentage (user or forced).
-                // We must NOT trigger the SpeedChanged event here, or it will impact the other screen in an infinite loop.
-                speedFactor = value * m_FrameServer.Metadata.HighSpeedFactor / 100;
-                sldrSpeed.Update(timeMapper.GetInputFromSpeedFactor(speedFactor));
+                // This happens in the context of synching
+                sldrSpeed.Update(timeMapper.GetInputFromSpeedFactorReal(value));
 
                 // Reset timer with new value.
                 if (isCurrentlyPlaying)
@@ -154,12 +150,14 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Returns the raw percentage of the slider.
-        /// This is the percentage of nominal framerate of the video.
+        /// Returns the speed factor with regards to the 
+        /// original video file frame rate.
+        /// Normally this should be very rarely used, as the nominal speed
+        /// is considered arbitrary.
         /// </summary>
-        public double SpeedPercentage
+        public double SpeedFactorNominal
         {
-            get { return speedFactor * 100; }
+            get { return timeMapper.GetSpeedFactorNominal(sldrSpeed.Value); }
         }
 
         public ScreenDescriptorPlayback ScreenDescriptor
@@ -316,18 +314,13 @@ namespace Kinovea.ScreenManager
         private int renderingDrops;
         private NativeMethods.TimerCallback timerCallback;
 
-        // Time coordinates mapping.
-        // Time mapper links the speed slider, the playback frame rate and the capture frame rate.
-        // speedFactor is the ratio to the nominal playback speed of the video.
-        // ex: 0.5 plays the video at half speed, irrespectively of whether the video itself is in slow motion.
-        // The capture frame rate is encoded itself as a ratio in in m_FrameServer.Metadata.HighSpeedFactor.
-        // ex: 0.5 means one second of video covers 0.5 seconds of real time action.
-        // When the user manipulates the speed slider we change the internal playback speed.
+        // Speed mapping.
+        // Time mapper links the speed slider, the nominal video file frame rate and
+        // the capture frame rate.
+        // The capture frame rate is in Metadata.HighSpeedFactor.
         // The value we show on the speed slider is the final ratio to real time.
-        // So if the user set the slider to 0.5 on a video with a high speed factor of 0.5, it will display 0.25.
         private TimeMapper timeMapper = new TimeMapper();
-        private double speedFactor = 1;  // Current scaling relatively to the nominal speed of the video.
-        private float timeGrabSpeed = 25.0f / 500.0f; // Speed of time grab in frames per pixel.
+        private float timeGrabSpeed = 25.0f / 500.0f;       // In frames per pixel.
         private TimecodeFormat timecodeFormat = TimecodeFormat.ClassicTime;
 
         // Synchronisation
@@ -510,12 +503,11 @@ namespace Kinovea.ScreenManager
             selectionTimer.Interval = 10000;
             selectionTimer.Tick += SelectionTimer_OnTick;
 
-            // The slider value range is arbitrary.
+            // The slider value range is arbitrary [0..1000].
             // The speed factor range corresponds to the factor wrt nominal video playback speed.
             // The time mapper takes values in this range of factors and returns slider values, or vice versa.
             // It uses a piecewise function, mapping [0.0, 1.0] to [0, 500] and [1.0, 10.0] to [500, 1000].
             timeMapper.Initialize(1000, 500, 10.0);
-            speedFactor = 1.0;
             sldrSpeed.Initialize(0, 1000, 500, timeMapper);
 
             monitorRefreshRate = UIHelper.GetMonitorFramerate(this.Handle);
@@ -724,17 +716,16 @@ namespace Kinovea.ScreenManager
                 }
             }
 
+            double speedFactorNominal = 1.0;
             if (screenDescriptor != null)
             {
-                // We assume this is a speed percentage of video framerate, not real time.
-                // We must do this after KVA loading because it may reset the slowmotion.
-                speedFactor = screenDescriptor.SpeedPercentage / 100.0;
+                speedFactorNominal = screenDescriptor.SpeedFactorNominal;
             }
 
             UpdateTimebase();
-            UpdateInfobar();
+            UpdateTimeLabels();
 
-            sldrSpeed.Update(timeMapper.GetInputFromSpeedFactor(speedFactor));
+            sldrSpeed.Update(timeMapper.GetInputFromSpeedFactor(speedFactorNominal));
             sldrSpeed.Enabled = true;
 
             if (!recoveredMetadata)
@@ -789,7 +780,6 @@ namespace Kinovea.ScreenManager
             double oldHSF = m_FrameServer.Metadata.HighSpeedFactor;
             double captureInterval = 1000 / m_FrameServer.Metadata.CalibrationHelper.CaptureFramesPerSecond;
 
-
             m_FrameServer.Metadata.HighSpeedFactor = m_FrameServer.Metadata.BaselineFrameInterval / captureInterval;
             UpdateTimebase();
 
@@ -833,10 +823,15 @@ namespace Kinovea.ScreenManager
         }
         public void UpdateTimebase()
         {
-            timeMapper.FileInterval = m_FrameServer.VideoReader.Info.FrameIntervalMilliseconds;
-            timeMapper.UserInterval = m_FrameServer.Metadata.BaselineFrameInterval;
-            timeMapper.CaptureInterval = timeMapper.UserInterval / m_FrameServer.Metadata.HighSpeedFactor;
+            timeMapper.UpdateTimebase(
+                m_FrameServer.VideoReader.Info.FrameIntervalMilliseconds,
+                m_FrameServer.Metadata.BaselineFrameInterval,
+                m_FrameServer.Metadata.HighSpeedFactor);
         }
+
+        /// <summary>
+        /// Updates all labels displaying time-related info, including the speed slider.
+        /// </summary>
         public void UpdateTimeLabels()
         {
             UpdateSelectionLabels();
@@ -1249,9 +1244,7 @@ namespace Kinovea.ScreenManager
             m_bKeyframePanelCollapsed = true;
             m_bTextEdit = false;
 
-            
             UpdateTimebase();
-            
         }
         
         private void SetupPrimarySelectionPanel()
@@ -2511,8 +2504,6 @@ namespace Kinovea.ScreenManager
         #region Speed Slider
         private void sldrSpeed_ValueChanged(object sender, EventArgs e)
         {
-            speedFactor = timeMapper.GetSpeedFactorNominal(sldrSpeed.Value);
-
             if (m_FrameServer.Loaded)
             {
                 // Reset timer with new value.
@@ -2540,14 +2531,15 @@ namespace Kinovea.ScreenManager
         private void UpdateSpeedLabel()
         {
             double speedFactorReal = timeMapper.GetSpeedFactorReal(sldrSpeed.Value);
+            double framerate = timeMapper.GetRealFrameRate(sldrSpeed.Value);
             string speedLabel = "";
             if (speedFactorReal < 1.0)
             {
-                speedLabel = string.Format("{0:0}%", speedFactorReal * 100);
+                speedLabel = string.Format("{0:0}% - {1:0.##} fps", speedFactorReal * 100, framerate);
             }
             else
             {
-                speedLabel = string.Format("{0:0.#}x", speedFactorReal);
+                speedLabel = string.Format("{0:0.#}x - {1:0.##} fps", speedFactorReal, framerate);
             }
 
             lblSpeedTuner.Text = speedLabel;
@@ -2813,7 +2805,7 @@ namespace Kinovea.ScreenManager
             // The timer itself doesn't need to be high frequency.
             // We translate from elapsed real clock time to elapsed video time based on the playback speed.
             // Cap it at the monitor refresh rate.
-            double playbackFrameInterval = GetPlaybackFrameInterval();
+            double playbackFrameInterval = timeMapper.GetPlaybackFrameInterval(sldrSpeed.Value);
             uint refreshInterval = (uint)Math.Round(Math.Max(playbackFrameInterval, (1000.0 / monitorRefreshRate)));
             
             log.DebugFormat("Starting playback on [{0}]. Frame interval:{1:0.000} ms, refresh interval:{2} ms.",
@@ -3438,14 +3430,6 @@ namespace Kinovea.ScreenManager
                 // This Present is still necessary to switch off the playback request.
                 PresentFrame(currentTimestamp);
             }
-        }
-
-        /// <summary>
-        /// Returns the frame interval in milliseconds for the current playback speed.
-        /// </summary>
-        private double GetPlaybackFrameInterval()
-        {
-            return timeMapper.GetInterval(sldrSpeed.Value);
         }
 
         private void SelectionTimer_OnTick(object sender, EventArgs e)

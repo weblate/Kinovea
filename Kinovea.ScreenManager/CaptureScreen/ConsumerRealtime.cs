@@ -59,7 +59,7 @@ namespace Kinovea.ScreenManager
 
             EncodingQuality quality = PreferencesManager.CapturePreferences.EncodingQuality;
             bool uncompressed = PreferencesManager.CapturePreferences.SaveUncompressedVideo && imageDescriptor.Format != ImageFormat.JPEG;
-            double fileInterval = CalibrationHelper.ComputeFileFrameInterval(interval);
+            double fileInterval = CalibrationHelper.ApplyFrameRateReplacement(interval);
 
             log.DebugFormat("Frame budget for writer [{0}]: {1:0.000} ms.", shortId, interval);
 

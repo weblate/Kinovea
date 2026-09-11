@@ -1132,7 +1132,7 @@ namespace Kinovea.Root
                 sdp.IsReplayWatcher = true;
                 sdp.Stretch = true;
                 sdp.Autoplay = true;
-                sdp.SpeedPercentage = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
+                sdp.SpeedFactorNominal = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
                 LoaderVideo.LoadVideoInScreen(screenManager, path, sdp);
 
                 screenManager.OrganizeScreens();
@@ -1146,7 +1146,7 @@ namespace Kinovea.Root
                 sdp.IsReplayWatcher = true;
                 sdp.Stretch = true;
                 sdp.Autoplay = true;
-                sdp.SpeedPercentage = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
+                sdp.SpeedFactorNominal = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
                 LoaderVideo.LoadVideoInScreen(screenManager, path, sdp);
 
                 screenManager.OrganizeScreens();
@@ -1161,7 +1161,7 @@ namespace Kinovea.Root
                     sdp.IsReplayWatcher = false;
                     sdp.Stretch = false;
                     sdp.Autoplay = false;
-                    sdp.SpeedPercentage = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
+                    sdp.SpeedFactorNominal = PreferencesManager.PlayerPreferences.DefaultReplaySpeed;
 
                     LoaderVideo.LoadVideoInScreen(screenManager, path, -1, sdp);
                     screenManager.OrganizeScreens();

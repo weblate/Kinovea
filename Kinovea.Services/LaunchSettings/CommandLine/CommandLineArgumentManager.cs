@@ -144,18 +144,15 @@ namespace Kinovea.Services
                     else if (!string.IsNullOrEmpty(video))
                     {
                         // Build screen descriptor manually.
-                        double speedValue;
-                        bool parsed = double.TryParse(speed, NumberStyles.Any, CultureInfo.InvariantCulture, out speedValue);
-                        if (parsed)
-                            speedValue = Math.Max(1, Math.Min(200, speedValue));
-                        else
-                            speedValue = 100;
+                        double speedPercentage;
+                        bool parsed = double.TryParse(speed, NumberStyles.Any, CultureInfo.InvariantCulture, out speedPercentage);
+                        speedPercentage = parsed ? Math.Max(1, Math.Min(1000, speedPercentage)) : 100;
 
                         ScreenDescriptorPlayback sdp = new ScreenDescriptorPlayback
                         {
                             FullPath = video,
                             Autoplay = true,
-                            SpeedPercentage = speedValue,
+                            SpeedFactorNominal = speedPercentage / 100.0,
                             Stretch = stretch,
                         };
 
@@ -167,7 +164,7 @@ namespace Kinovea.Services
                             {
                                 FullPath = video2,
                                 Autoplay = true,
-                                SpeedPercentage = speedValue,
+                                SpeedFactorNominal = speedPercentage / 100.0,
                                 Stretch = stretch,
                             };
 
