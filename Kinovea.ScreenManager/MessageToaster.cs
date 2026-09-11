@@ -44,6 +44,10 @@ namespace Kinovea.ScreenManager
     public class MessageToaster
     {
         #region Properties
+
+        /// <summary>
+        /// A message is currently being displayed.
+        /// </summary>
         public bool Enabled
         {
             get { return enabled; }

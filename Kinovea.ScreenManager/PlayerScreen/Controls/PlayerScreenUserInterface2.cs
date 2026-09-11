@@ -380,6 +380,8 @@ namespace Kinovea.ScreenManager
         private bool videoFilterIsActive;
         private System.Windows.Forms.Timer selectionTimer = new System.Windows.Forms.Timer();
         private MessageToaster m_MessageToaster;
+        private float jumpByTimeAcc;
+        private TimelineJumpUnit jumpByTimeLastUnit = TimelineJumpUnit.Second;
         private bool m_Constructed;
         private bool workingZoneInitializedFromKVA; // The working zone has been ingested during init from a KVA sidecar. 
         private ScreenPointerManager cursorManager = new ScreenPointerManager();
@@ -2057,7 +2059,7 @@ namespace Kinovea.ScreenManager
 
         private long JumpByTime(float value, bool forward, TimelineJumpUnit unit, bool showToast)
         {
-            double sign = forward ? 1.0 : -1.0;
+            float sign = forward ? 1.0f : -1.0f;
             double deltaTimestamps = 0;
             string unitStr = "";
             switch (unit)
@@ -2077,20 +2079,36 @@ namespace Kinovea.ScreenManager
             }
 
             long newTimestamp = (long)Math.Round(currentTimestamp + (sign * deltaTimestamps));
-
-            if (showToast)
+            newTimestamp = Math.Min(Math.Max(newTimestamp, workingZone.Start), workingZone.End);
+            bool changed = newTimestamp != currentTimestamp;
+            
+            if (showToast && changed)
             {
                 // Send a toast message on the side.
+                // Accumulate the value if we are already showing the toast and
+                // still going in the same direction and same unit.
+                if (m_MessageToaster.Enabled && 
+                    Math.Sign(jumpByTimeAcc) == sign &&
+                    jumpByTimeLastUnit == unit)
+                {
+                    jumpByTimeAcc += (sign * value);
+                }
+                else
+                {
+                    jumpByTimeAcc = (sign * value);
+                    jumpByTimeLastUnit = unit;
+                }
+
                 string message = "";
                 HorizontalAlignment alignment = HorizontalAlignment.Center;
-                if (forward)
+                if (jumpByTimeAcc > 0)
                 {
-                    message = string.Format("+{0:0.###} {1}", value, unitStr);
+                    message = string.Format("+{0:0.###} {1}", jumpByTimeAcc, unitStr);
                     alignment = HorizontalAlignment.Right;
                 }
                 else
                 {
-                    message = string.Format("−{0:0.###} {1}", value, unitStr);
+                    message = string.Format("-{0:0.###} {1}", -jumpByTimeAcc, unitStr);
                     alignment = HorizontalAlignment.Left;
                 }
 
