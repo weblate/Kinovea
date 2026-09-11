@@ -74,10 +74,11 @@ namespace Kinovea.Root
 
         // Player
         private bool enableFrameSkipping;
+        private bool loopPlayback;
+        private bool showFramerateInSpeedLabel;
         private bool interactiveFrameTracker;
         private bool syncLockSpeeds;
         private bool syncByMotion;
-        private bool showFramerateInSpeedLabel;
 
         // Jumping
         private float smallJumpSize;
@@ -132,11 +133,12 @@ namespace Kinovea.Root
             showCacheInTimeline = PreferencesManager.PlayerPreferences.ShowCacheInTimeline;
             
             // Player
-            interactiveFrameTracker = PreferencesManager.PlayerPreferences.InteractiveFrameTracker;
             enableFrameSkipping = PreferencesManager.PlayerPreferences.EnableFrameSkipping;
+            loopPlayback = PreferencesManager.PlayerPreferences.LoopPlayback;
+            interactiveFrameTracker = PreferencesManager.PlayerPreferences.InteractiveFrameTracker;
+            showFramerateInSpeedLabel = PreferencesManager.PlayerPreferences.SpeedLabelFramerate;
             syncByMotion = PreferencesManager.PlayerPreferences.SyncByMotion;
             syncLockSpeeds = PreferencesManager.PlayerPreferences.SyncLockSpeed;
-            showFramerateInSpeedLabel = PreferencesManager.PlayerPreferences.SpeedLabelFramerate;
 
             // Time jump
             smallJumpSize = PreferencesManager.PlayerPreferences.TimelineJumpSmallSize;
@@ -192,12 +194,14 @@ namespace Kinovea.Root
             chkLockSpeeds.Text = RootLang.dlgPreferences_Player_SyncLockSpeeds;
             chkSyncByMotion.Text = "Use motion synchronization mode";
             chkShowFramerate.Text = "Show framerate in speed label";
+            chkLoopPlayback.Text = "Loop playback";
 
             chkEnableFrameSkipping.Checked = enableFrameSkipping;
             chkInteractiveTracker.Checked = interactiveFrameTracker;
             chkLockSpeeds.Checked = syncLockSpeeds;
             chkSyncByMotion.Checked = syncByMotion;
             chkShowFramerate.Checked = showFramerateInSpeedLabel;
+            chkLoopPlayback.Checked = loopPlayback;
         }
 
         private void InitPageJumping()
@@ -325,6 +329,11 @@ namespace Kinovea.Root
         private void cbShowFramerate_CheckedChanged(object sender, EventArgs e)
         {
             showFramerateInSpeedLabel = chkShowFramerate.Checked;
+        }
+
+        private void chkLoopPlayback_CheckedChanged(object sender, EventArgs e)
+        {
+            loopPlayback = chkLoopPlayback.Checked;
         }
 
         #endregion
@@ -473,6 +482,7 @@ namespace Kinovea.Root
             PreferencesManager.PlayerPreferences.SyncLockSpeed = syncLockSpeeds;
             PreferencesManager.PlayerPreferences.SyncByMotion = syncByMotion;
             PreferencesManager.PlayerPreferences.SpeedLabelFramerate = showFramerateInSpeedLabel;
+            PreferencesManager.PlayerPreferences.LoopPlayback = loopPlayback;
 
             // Time jump
             PreferencesManager.PlayerPreferences.TimelineJumpSmallSize = smallJumpSize;

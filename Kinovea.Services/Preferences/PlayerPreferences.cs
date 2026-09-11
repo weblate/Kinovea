@@ -294,6 +294,12 @@ namespace Kinovea.Services
             set { speedLabelInterval = value; Save(); }
         }
 
+        public bool LoopPlayback
+        {
+            get { BeforeRead(); return loopPlayback; }
+            set { loopPlayback = value; Save(); }
+        }
+
         #endregion
 
         #region Members
@@ -346,6 +352,7 @@ namespace Kinovea.Services
         private bool speedLabelFactor = true;
         private bool speedLabelFramerate = false;
         private bool speedLabelInterval = false;
+        private bool loopPlayback = true;
         #endregion
 
         private void Save()
@@ -457,6 +464,7 @@ namespace Kinovea.Services
             writer.WriteElementString("SpeedLabelFactor", XmlHelper.WriteBoolean(speedLabelFactor));
             writer.WriteElementString("SpeedLabelFramerate", XmlHelper.WriteBoolean(speedLabelFramerate));
             writer.WriteElementString("SpeedLabelInterval", XmlHelper.WriteBoolean(speedLabelInterval));
+            writer.WriteElementString("LoopPlayback", XmlHelper.WriteBoolean(loopPlayback));
         }
         
         public void ReadXML(XmlReader reader)
@@ -610,6 +618,9 @@ namespace Kinovea.Services
                         break;
                     case "SpeedLabelInterval":
                         speedLabelInterval = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
+                        break;
+                    case "LoopPlayback":
+                        loopPlayback = XmlHelper.ParseBoolean(reader.ReadElementContentAsString());
                         break;
                     default:
                         reader.ReadOuterXml();

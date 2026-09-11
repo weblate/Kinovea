@@ -3094,15 +3094,25 @@ namespace Kinovea.ScreenManager
         {
             m_FrameServer.Metadata.StopAllTracking();
 
+            bool loopPlayback = PreferencesManager.PlayerPreferences.LoopPlayback;
+
             if (isSynchronized)
             {
+                // Stop and wait at start.
                 StopPlaying(false);
                 PresentFrame(workingZone.Start, true);
             }
-            else 
+            else if (loopPlayback)
             {
+                // Stop and restart.
                 StopMultimediaTimer();
                 StartMultimediaTimer(workingZone.Start);
+            }
+            else
+            {
+                // Stop and wait at end.
+                StopPlaying(false);
+                PresentFrame(workingZone.End, true);
             }
         }
         
