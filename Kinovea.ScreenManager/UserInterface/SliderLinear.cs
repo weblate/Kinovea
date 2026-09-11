@@ -28,6 +28,11 @@ namespace Kinovea.ScreenManager
 {
     /// <summary>
     /// Maps an arbitrary value range (say 0-1000) to the pixel coordinates of the slider.
+    /// The goal of this class is to make sure the TimeMapper works with a known range of values,
+    /// unrelated to the size of this control in pixels.
+    /// This class does a linear mapping. For log or piecewise mapping between these 
+    /// values and user-facing values like a speed percentage, it is the time mapper 
+    /// that does the work.
     /// </summary>
     public class SliderLinear : Control
     {
@@ -61,24 +66,13 @@ namespace Kinovea.ScreenManager
         public double Value
         {
             get { return val;}
-            set 
-            {
-                val = Math.Min(Math.Max(value, min), max);
-
-                UpdatePixelLocation();
-            }
+            set { Update(value); }
         }
         
         public bool IsSticky
         {
             get { return isSticky; }
             set { isSticky = value; }
-        }
-
-        public double StickyValue
-        {
-            get { return stickyValue; }
-            set { stickyValue = value; }
         }
         #endregion
     
@@ -90,10 +84,9 @@ namespace Kinovea.ScreenManager
         private double min;
         private double max;
         private double val;
+        private TimeMapper timeMapper;
         private bool isSticky;
-        private double stickyValue;
-        private double stickyRadius;
-
+        
         private Bitmap cursor;
         private Bitmap gutterLeft;
         private Bitmap gutterRight;
@@ -125,15 +118,16 @@ namespace Kinovea.ScreenManager
             this.Height = gutterCenter.Height;
         }
         
-        public void Initialize(double min, double max, double val)
+        public void Initialize(double min, double max, double val, TimeMapper timeMapper)
         {
             this.min = min;
             this.max = max;
             this.val = val;
+            this.timeMapper = timeMapper;
 
-            stickyValue = val;
             isSticky = true;
-            stickyRadius = 0.05 * (max - min);
+            //stickyValue = val;
+            //stickyRadius = 0.05 * (max - min);
             
             UpdatePixelLocation();
         }
@@ -176,18 +170,24 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Set a new value and raises event back.
+        /// Set a new value and raises the event back.
         /// Used to programmatically set the value, for automatic decrease for example.
         /// </summary>
         public void Force(double value)
+        {
+            Update(value);
+            ValueChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>
+        /// Set a new value but does not raise the event back.
+        /// </summary>
+        public void Update(double value)
         {
             val = Math.Max(Math.Min(value, max), min);
             valPix = ValueToPixel(val);
             UpdatePixelLocation();
             Invalidate();
-
-            if (ValueChanged != null)
-                ValueChanged(this, EventArgs.Empty);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -227,7 +227,19 @@ namespace Kinovea.ScreenManager
             
             valPix = Math.Max(Math.Min(e.X, maxPix), minPix);
             val = PixelToValue(valPix);
-            ApplyStickiness();
+            
+            if (timeMapper != null)
+            {
+                if (isSticky)
+                {
+                    val = timeMapper.ApplyStickiness(val);
+                    valPix = ValueToPixel(val);
+                }
+
+                val = timeMapper.RoundSpeed(val);
+                valPix = ValueToPixel(val);
+            }
+
             Invalidate();
 
             ValueChanged?.Invoke(this, EventArgs.Empty);
@@ -239,7 +251,19 @@ namespace Kinovea.ScreenManager
             
             valPix = Math.Max(Math.Min(e.X, maxPix), minPix);
             val = PixelToValue(valPix);
-            ApplyStickiness();
+
+            if (timeMapper != null)
+            {
+                if (isSticky)
+                {
+                    val = timeMapper.ApplyStickiness(val);
+                    valPix = ValueToPixel(val);
+                }
+
+                val = timeMapper.RoundSpeed(val);
+                valPix = ValueToPixel(val);
+            }
+
             Invalidate();
 
             ValueChanged?.Invoke(this, EventArgs.Empty);
@@ -264,15 +288,6 @@ namespace Kinovea.ScreenManager
             double pNormalized = (p - minPix) / (maxPix - minPix);
             double v = min + (pNormalized * (max - min));
             return v;
-        }
-
-        private void ApplyStickiness()
-        {
-            if (isSticky && val >= stickyValue - stickyRadius && val <= stickyValue + stickyRadius)
-            {
-                val = stickyValue;
-                valPix = ValueToPixel(val);
-            }
         }
     }
 }

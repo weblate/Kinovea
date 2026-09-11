@@ -196,7 +196,6 @@ namespace Kinovea.ScreenManager
       this.sldrDelay.Name = "sldrDelay";
       this.sldrDelay.Size = new System.Drawing.Size(153, 23);
       this.sldrDelay.IsSticky = false;
-      this.sldrDelay.StickyValue = 0D;
       this.sldrDelay.TabIndex = 43;
       this.sldrDelay.Text = "sliderLinear1";
       this.sldrDelay.Value = 0D;

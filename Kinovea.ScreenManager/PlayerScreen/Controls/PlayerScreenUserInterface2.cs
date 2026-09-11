@@ -132,7 +132,7 @@ namespace Kinovea.ScreenManager
         {
             get
             {
-                return timeMapper.GetRealtimeMultiplier(sldrSpeed.Value) * 100;
+                return timeMapper.GetSpeedFactorReal(sldrSpeed.Value) * 100;
             }
             set
             {
@@ -515,7 +515,7 @@ namespace Kinovea.ScreenManager
             // It uses a piecewise function, mapping [0.0, 1.0] to [0, 500] and [1.0, 10.0] to [500, 1000].
             timeMapper.Initialize(0, 1000, 500, 0.0, 10.0, 1.0);
             speedFactor = 1.0;
-            sldrSpeed.Initialize(0, 1000, 500);
+            sldrSpeed.Initialize(0, 1000, 500, timeMapper);
 
             monitorRefreshRate = UIHelper.GetMonitorFramerate(this.Handle);
 
@@ -1558,22 +1558,18 @@ namespace Kinovea.ScreenManager
                     OnButtonPlay();
                     break;
                 case PlayerScreenCommands.IncreaseSpeed1:
-                    ChangeSpeed(1);
+                    ChangeSpeed(false, true);
                     break;
                 case PlayerScreenCommands.IncreaseSpeedRoundTo10:
-                    ChangeSpeed(10);
-                    break;
                 case PlayerScreenCommands.IncreaseSpeedRoundTo25:
-                    ChangeSpeed(25);
+                    ChangeSpeed(true, true);
                     break;
                 case PlayerScreenCommands.DecreaseSpeed1:
-                    ChangeSpeed(-1);
+                    ChangeSpeed(false, false);
                     break;
                 case PlayerScreenCommands.DecreaseSpeedRoundTo10:
-                    ChangeSpeed(-10);
-                    break;
                 case PlayerScreenCommands.DecreaseSpeedRoundTo25:
-                    ChangeSpeed(-25);
+                    ChangeSpeed(true, false);
                     break;
 
                 // Frame by frame navigation
@@ -2469,7 +2465,7 @@ namespace Kinovea.ScreenManager
         #region Speed Slider
         private void sldrSpeed_ValueChanged(object sender, EventArgs e)
         {
-            speedFactor = timeMapper.GetSpeedFactor(sldrSpeed.Value);
+            speedFactor = timeMapper.GetSpeedFactorNominal(sldrSpeed.Value);
 
             if (m_FrameServer.Loaded)
             {
@@ -2485,32 +2481,31 @@ namespace Kinovea.ScreenManager
 
             UpdateSpeedLabel();
         }
-        private void ChangeSpeed(int change)
+        private void ChangeSpeed(bool large, bool up)
         {
-            // The input value is a relative percentile milestone.
-            // Ex: we are on 86%, value = -25, the target is 75%.
-
-            if (change == 0)
-                return;
-
-            sldrSpeed.StepJump(change / 200.0);
+            double sldrValue = timeMapper.ChangeSpeed(sldrSpeed.Value, large, up);
+            sldrSpeed.Force(sldrValue);
         }
         private void lblSpeedTuner_DoubleClick(object sender, EventArgs e)
         {
-            speedFactor = 1;
-            sldrSpeed.Force(timeMapper.GetInputFromSpeedFactor(speedFactor));
+            double sldrValue = timeMapper.GetInputForNominalSpeed();
+            sldrSpeed.Force(sldrValue);
         }
         private void UpdateSpeedLabel()
         {
-            double multiplier = timeMapper.GetRealtimeMultiplier(sldrSpeed.Value);
-            string speedValue = "";
+            double speedFactorReal = timeMapper.GetSpeedFactorReal(sldrSpeed.Value);
+            string speedLabel = "";
 
-            if (multiplier < 1.0)
-                speedValue = string.Format("{0:0.##}%", multiplier * 100);
-            else
-                speedValue = string.Format("{0:0.##}x", multiplier);
+            if (speedFactorReal < 1.0)
+            {
+                speedLabel = string.Format("{0:0}%", speedFactorReal * 100);
+            }
+            else if (speedFactorReal > 1.0)
+            {
+                speedLabel = string.Format("{0:0.#}x", speedFactorReal);
+            }
 
-            lblSpeedTuner.Text = speedValue;
+            lblSpeedTuner.Text = speedLabel;
         }
         #endregion
 

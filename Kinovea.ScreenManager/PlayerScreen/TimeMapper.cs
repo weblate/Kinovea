@@ -7,12 +7,15 @@ namespace Kinovea.ScreenManager
 {
     /// <summary>
     /// The time mapper links the speed slider, the playback frame rate and the capture frame rate.
+    /// This does not own the current value, just the mapping functions.
+    /// The mapping uses a piecewise linear function with a midpoint at 1x speed.
+    /// I also experimented with a true logarithmic mapping but the piecewise one feels more intuitive.
     /// </summary>
     public class TimeMapper
     {
         #region Properties
         /// <summary>
-        /// The interval between frames (ms) for playback purposes specified in the file.
+        /// The nominal frame interval (ms) for playback purposes, as specified in the file.
         /// </summary>
         public double FileInterval 
         {
@@ -21,7 +24,7 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// The interval between frames (ms) for playback purposes specified by the user.
+        /// The user override to the nominal frame interval (ms).
         /// </summary>
         public double UserInterval
         {
@@ -30,7 +33,7 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// The interval of real time (ms) between captured frames, specified by the user.
+        /// The real time interval (ms) between captured frames, provided by the user.
         /// </summary>
         public double CaptureInterval
         {
@@ -79,9 +82,9 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Returns the speed factor corresponding to the input.
+        /// Returns the speed factor wrt to file-nominal speed, for the input value.
         /// </summary>
-        public double GetSpeedFactor(double input)
+        public double GetSpeedFactorNominal(double input)
         {
             return MapInput(input);
         }
@@ -91,15 +94,15 @@ namespace Kinovea.ScreenManager
         /// </summary>
         public double GetInterval(double input)
         {
-            double factor = MapInput(input);
-            return userInterval / factor;
+            double speedFactor = MapInput(input);
+            return userInterval / speedFactor;
         }
 
         /// <summary>
-        /// Returns the fraction of real-time speed of the given input, for information purposes.
-        /// Used to display percentage or multiplier of real-time.
+        /// Returns the real-time speed factor of the given input value.
+        /// Used for the actual display of the speed percentage.
         /// </summary>
-        public double GetRealtimeMultiplier(double input)
+        public double GetSpeedFactorReal(double input)
         {
             double realtimeFactor = userInterval / captureInterval;
             double speedFactor = MapInput(input);
@@ -107,13 +110,112 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Returns the slider input corresponding to a specific slow motion factor.
-        /// Used to draw tick marks.
+        /// Returns the slider input corresponding to a specific speed factor.
+        /// The input speed factor is with regards to file-nominal speed.
+        /// Used to translate speed factors between player screens during sync.
+        /// Used to initialize the speed slider value from XML.
         /// </summary>
         public double GetInputFromSpeedFactor(double speedFactor)
         {
             return MapSpeedFactor(speedFactor);
         }
+
+        /// <summary>
+        /// Returns the slider input value corresponding to file-nominal 1x.
+        /// </summary>
+        public double GetInputForNominalSpeed()
+        {
+            return MapSpeedFactor(1);
+        }
+
+        /// <summary>
+        /// Round the input value such that the speed factor is mapped 
+        /// to nearest 0.01x below 1x and nearest 0.1x above 1x.
+        /// </summary>
+        public double RoundSpeed(double input)
+        {
+            // This should also most likely be done in real time factor.
+            double speedFactor = MapInput(input);
+            if (speedFactor < midFactor)
+            {
+                speedFactor = Math.Round(speedFactor * 100) / 100.0;
+            }
+            else
+            {
+                speedFactor = Math.Round(speedFactor * 10) / 10.0;
+            }
+
+            return MapSpeedFactor(speedFactor);
+        }
+
+        /// <summary>
+        /// Increase or decrease the input value such that the speed factor 
+        /// is snapped to the next/previous step.
+        /// Below 1x: snap to next/prev 10% for large and 1% for small.
+        /// Above 1x: snap to next/prev 1x for large and 0.1x for small.
+        /// </summary>
+        public double ChangeSpeed(double input, bool large, bool up)
+        {
+            double speedFactor = MapInput(input);
+            double newSpeedFactor = speedFactor;
+
+            // TODO: the change is computed in nomimal speed factor.
+            // It should probably be in real time speed factor.
+            double snapTarget, min, max;
+            
+            // We need to consider the case where we are exactly at 1x,
+            // in this case the target depends on whether we are going up or down.
+            if (speedFactor < midFactor || (speedFactor == midFactor && !up))
+            {
+                snapTarget = large ? 0.1 : 0.01;
+                min = minFactor;
+                max = midFactor;
+            }
+            else
+            {
+                snapTarget = large ? 1 : 0.1;
+                min = midFactor;
+                max = maxFactor;
+            }
+
+            double range = max - min;
+            double current = (speedFactor - min) / range;
+            double totalSteps = range / snapTarget;
+            double stepSize = 1.0 / totalSteps;
+            double stepIndex = current / stepSize;
+            double roundedStep = Math.Round(stepIndex);
+            double epsilon = 1e-3;
+            if (Math.Abs(stepIndex - roundedStep) < epsilon)
+            {
+                stepIndex = roundedStep;
+            }
+            double snapIndex = up ? Math.Floor(stepIndex) + 1 : Math.Ceiling(stepIndex) - 1;
+            snapIndex = Math.Max(Math.Min(snapIndex, totalSteps), 0);
+
+            newSpeedFactor = min + (snapIndex * stepSize * range);
+
+            return MapSpeedFactor(newSpeedFactor);
+        }
+
+        /// <summary>
+        /// Disallow values too close to 1x speed factor.
+        /// </summary>
+        public double ApplyStickiness(double input)
+        {
+            // TODO: work in real time speed factor instead of nominal speed factor.
+            double speedFactor = MapInput(input);
+            double low = 0.90;
+            double high = 1.10;
+            double sticky = 1.0;
+            if (speedFactor > low && speedFactor < high)
+            {
+                return MapSpeedFactor(sticky);
+            }
+
+            return input;
+        }
+
+
         #endregion
 
         #region Private methods
@@ -140,16 +242,6 @@ namespace Kinovea.ScreenManager
         /// <summary>
         /// Slider input -> speed factor.
         /// </summary>
-        private double MapInputLinear(double input)
-        {
-            double inputNormalized = (input - minInput) / (maxInput - minInput);
-            double result = minFactor + (inputNormalized * (maxFactor - minFactor));
-            return Math.Max(result, safeMinFactor);
-        }
-
-        /// <summary>
-        /// Slider input -> speed factor.
-        /// </summary>
         private double MapInputPiecewise(double input)
         {
             if (input < midInput)
@@ -165,17 +257,6 @@ namespace Kinovea.ScreenManager
                 return Math.Max(result, safeMinFactor);
             }
         }
-
-        /// <summary>
-        /// Speed factor -> slider input.
-        /// </summary>
-        private double MapSpeedFactorLinear(double speedFactor)
-        {
-            double speedFactorNormalized = (speedFactor - minFactor) / (maxFactor - minFactor);
-            double result = minInput + (speedFactorNormalized * (maxInput - minInput));
-            return Math.Max(result, safeMinInput);
-        }
-
 
         /// <summary>
         /// Speed factor -> slider input.
