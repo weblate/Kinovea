@@ -51,7 +51,6 @@ namespace Kinovea.ScreenManager
         public event EventHandler FilterExited;
         public event EventHandler ResetAsked;
         public event EventHandler DrawingAdded;
-        public event EventHandler ExportabilityChanged;
         #endregion
 
         #region Properties
@@ -470,7 +469,6 @@ namespace Kinovea.ScreenManager
 
             frameServer.Metadata.TrackableDrawingAdded += (s, e) => AddTrackableDrawing(e.Value);
             frameServer.Metadata.CameraCalibrationAsked += (s, e) => ShowCameraCalibration();
-            frameServer.Metadata.ExportabilityChanged += (s, e) => ExportabilityChanged(s, e);
         }
 
         #region General events handlers

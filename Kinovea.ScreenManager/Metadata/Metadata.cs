@@ -61,7 +61,6 @@ namespace Kinovea.ScreenManager
         public EventHandler MultiDrawingItemDeleted;
         public EventHandler CameraCalibrationAsked;
         public EventHandler VideoFilterModified;
-        public EventHandler ExportabilityChanged; // kf or drawing added or removed.
         #endregion
 
         #region Properties
@@ -694,7 +693,6 @@ namespace Kinovea.ScreenManager
             UpdateTrajectoriesForKeyframes();
 
             KeyframeAdded?.Invoke(this, new KeyframeEventArgs(keyframe.Id));
-            ExportabilityChanged?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
@@ -729,7 +727,6 @@ namespace Kinovea.ScreenManager
             UpdateTrajectoriesForKeyframes();
 
             KeyframeDeleted?.Invoke(this, new KeyframeEventArgs(id));
-            ExportabilityChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void SelectKeyframe(Keyframe keyframe)
@@ -1231,7 +1228,6 @@ namespace Kinovea.ScreenManager
             DeselectAll();
 
             DrawingDeleted?.Invoke(this, new EventArgs<Guid>(drawingId));
-            ExportabilityChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void DeleteMultiDrawingItem(AbstractMultiDrawing manager, Guid itemId)
@@ -1850,8 +1846,6 @@ namespace Kinovea.ScreenManager
                 DrawingDistortionGrid d = drawing as DrawingDistortionGrid;
                 d.LensCalibrationAsked += Drawing_LensCalibrationAsked;
             }
-
-            ExportabilityChanged?.Invoke(this, EventArgs.Empty);
         }
 
         private void BeforeDrawingDeletion(AbstractDrawing drawing)

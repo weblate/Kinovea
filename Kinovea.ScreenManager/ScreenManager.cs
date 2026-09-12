@@ -1012,10 +1012,6 @@ namespace Kinovea.ScreenManager
         {
             OrganizeMenus();
         }
-        private void Player_ExportabilityChanged(object sender, EventArgs e)
-        {
-            OrganizeMenus();
-        }
         private void Player_FilterExited(object sender, EventArgs e)
         {
             OrganizeMenus();
@@ -3574,7 +3570,6 @@ namespace Kinovea.ScreenManager
             screen.KVAImported += Player_KVAImported;
             screen.FilterExited += Player_FilterExited;
             screen.ResetAsked += Player_ResetAsked;
-            screen.ExportabilityChanged += Player_ExportabilityChanged;
         }
         private void AddCaptureScreenEventHandlers(CaptureScreen screen)
         {
@@ -3601,7 +3596,6 @@ namespace Kinovea.ScreenManager
             screen.KVAImported -= Player_KVAImported;
             screen.FilterExited -= Player_FilterExited;
             screen.ResetAsked -= Player_ResetAsked;
-            screen.ExportabilityChanged -= Player_ExportabilityChanged;
         }
 
         private void RemoveCaptureScreenEventHandlers(CaptureScreen screen)
