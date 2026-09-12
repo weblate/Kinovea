@@ -51,6 +51,7 @@ namespace Kinovea.ScreenManager
         public event EventHandler FilterExited;
         public event EventHandler ResetAsked;
         public event EventHandler DrawingAdded;
+        public event EventHandler ExportabilityChanged;
         #endregion
 
         #region Properties
@@ -404,16 +405,14 @@ namespace Kinovea.ScreenManager
             replayWatcher = new ReplayWatcher(this);
             view = new PlayerScreenUserInterface(frameServer, drawingToolbarPresenter);
 
-            BindCommands();
+            HookEvents();
         }
         #endregion
 
-        private void BindCommands()
+        private void HookEvents()
         {
-            // Provides implementation for behaviors triggered from the view, either as commands or as event handlers.
-
             // Forwarded to screen manager via AbstractScreen.
-            view.SetAsActiveScreen += (s, e) => RaiseActivated(e);
+            view.ScreenActivated += (s, e) => RaiseActivated(e);
             view.DualCommandReceived += (s, e) => RaiseDualCommandReceived(e);
             view.LoadAnnotationsAsked += (s, e) => RaiseLoadAnnotationsAsked(e);
             view.CloseAsked += (s, e) => RaiseCloseAsked(e);
@@ -425,7 +424,7 @@ namespace Kinovea.ScreenManager
             view.SelectionChanged += (s, e) => SelectionChanged?.Invoke(this, e);
             view.FilterExited += (s, e) => FilterExited?.Invoke(this, e);
             view.ResetAsked += (s, e) => ResetAsked?.Invoke(this, e);
-
+            
             // Forwarded to dual player
             view.ImageChanged += (s, e) => ImageChanged(this, e);
 
@@ -471,7 +470,7 @@ namespace Kinovea.ScreenManager
 
             frameServer.Metadata.TrackableDrawingAdded += (s, e) => AddTrackableDrawing(e.Value);
             frameServer.Metadata.CameraCalibrationAsked += (s, e) => ShowCameraCalibration();
-            frameServer.Metadata.DrawingAdded += (s, e) => DrawingAdded?.Invoke(this, EventArgs.Empty);
+            frameServer.Metadata.ExportabilityChanged += (s, e) => ExportabilityChanged(s, e);
         }
 
         #region General events handlers
@@ -540,14 +539,12 @@ namespace Kinovea.ScreenManager
         
         public void View_SpeedChanged(object sender, EventArgs e)
         {
-            if (SpeedChanged != null)
-                SpeedChanged(this, EventArgs.Empty);
+            SpeedChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void View_TimeOriginChanged(object sender, EventArgs e)
         {
-            if (TimeOriginChanged != null)
-                TimeOriginChanged(this, EventArgs.Empty);
+            TimeOriginChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void View_KVAImported(object sender, EventArgs e)
@@ -555,20 +552,17 @@ namespace Kinovea.ScreenManager
             if (KVAImported != null)
                 KVAImported(this, EventArgs.Empty);
 
-            if (HighSpeedFactorChanged != null)
-                HighSpeedFactorChanged(this, EventArgs.Empty);
+            HighSpeedFactorChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void View_PlayStarted(object sender, EventArgs e)
         {
-            if (PlayStarted != null)
-                PlayStarted(this, EventArgs.Empty);
+            PlayStarted?.Invoke(this, EventArgs.Empty);
         }
 
         public void View_PauseAsked(object sender, EventArgs e)
         {
-            if (PauseAsked != null)
-                PauseAsked(this, EventArgs.Empty);
+            PauseAsked?.Invoke(this, EventArgs.Empty);
         }
         #endregion
 

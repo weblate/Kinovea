@@ -874,8 +874,7 @@ namespace Kinovea.ScreenManager
         #region Event handlers for screens
         private void Screen_Activated(object sender, EventArgs e)
         {
-            AbstractScreen screen = sender as AbstractScreen;
-            SetActiveScreen(screen);
+            SetActiveScreen(sender as AbstractScreen);
         }
         private void Screen_LoadAnnotationsAsked(object sender, EventArgs e)
         {
@@ -1013,25 +1012,20 @@ namespace Kinovea.ScreenManager
         {
             OrganizeMenus();
         }
-
+        private void Player_ExportabilityChanged(object sender, EventArgs e)
+        {
+            OrganizeMenus();
+        }
         private void Player_FilterExited(object sender, EventArgs e)
         {
             OrganizeMenus();
         }
-
         private void Player_ResetAsked(object sender, EventArgs e)
         {
             // A screen was reset. (ex: a video was reloded in place).
             // We need to also reset all the sync states.
             ResetSync();
         }
-
-        private void Player_DrawingAdded(object sender, EventArgs e)
-        {
-            // Make sure the export options are correctly enabled.
-            OrganizeMenus();
-        }
-
         private void Capture_CameraDiscoveryComplete(object sender, EventArgs<string> e)
         {
             // A capture screen has just completed its camera discovery,
@@ -1060,7 +1054,7 @@ namespace Kinovea.ScreenManager
         #region Public Methods
         public void SetActiveScreen(AbstractScreen screen)
         {
-            if(screen == null )
+            if (screen == null)
                 return;
 
             if (screen == activeScreen)
@@ -3559,7 +3553,7 @@ namespace Kinovea.ScreenManager
             screen.KVAImported += Player_KVAImported;
             screen.FilterExited += Player_FilterExited;
             screen.ResetAsked += Player_ResetAsked;
-            screen.DrawingAdded += Player_DrawingAdded;
+            screen.ExportabilityChanged += Player_ExportabilityChanged;
         }
         private void AddCaptureScreenEventHandlers(CaptureScreen screen)
         {
@@ -3586,7 +3580,7 @@ namespace Kinovea.ScreenManager
             screen.KVAImported -= Player_KVAImported;
             screen.FilterExited -= Player_FilterExited;
             screen.ResetAsked -= Player_ResetAsked;
-            screen.DrawingAdded -= Player_DrawingAdded;
+            screen.ExportabilityChanged -= Player_ExportabilityChanged;
         }
 
         private void RemoveCaptureScreenEventHandlers(CaptureScreen screen)

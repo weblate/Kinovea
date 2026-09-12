@@ -70,7 +70,7 @@ namespace Kinovea.ScreenManager
         public event EventHandler CloseAsked;
         public event EventHandler StopWatcherAsked;
         public event EventHandler<EventArgs<CaptureFolder>> StartWatcherAsked;
-        public event EventHandler SetAsActiveScreen;
+        public event EventHandler ScreenActivated;
         public event EventHandler SpeedChanged;
         public event EventHandler TimeOriginChanged;
         public event EventHandler KVAImported;
@@ -981,7 +981,7 @@ namespace Kinovea.ScreenManager
             UpdateSelectionLabels();
             OnPoke();
             RestoreActiveVideoFilter();
-            OnSelectionChanged(true);
+            RaiseSelectionChanged(true);
         }
 
         /// <summary>
@@ -1145,7 +1145,7 @@ namespace Kinovea.ScreenManager
             if (isCurrentlyPlaying)
             {
                 StopPlaying();
-                OnPauseAsked();
+                RaisePauseAsked();
             }
 
             PrepareKeyframesDock();
@@ -1813,17 +1813,17 @@ namespace Kinovea.ScreenManager
         #endregion
 
         #region Misc private helpers
-        private void OnPauseAsked()
+        private void RaisePauseAsked()
         {
             PauseAsked?.Invoke(this, EventArgs.Empty);
         }
-        private void OnSelectionChanged(bool initialization)
+        private void RaiseSelectionChanged(bool initialization)
         {
             SelectionChanged?.Invoke(this, new EventArgs<bool>(initialization));
         }
-        private void RaiseSetAsActiveScreenEvent()
+        private void RaiseScreenActivated()
         {
-            SetAsActiveScreen?.Invoke(this, EventArgs.Empty);
+            ScreenActivated?.Invoke(this, EventArgs.Empty);
         }
 
         private void OnPoke()
@@ -1833,7 +1833,7 @@ namespace Kinovea.ScreenManager
             // Signal itself as the active screen to the ScreenManager
             // This will trigger an update of the top-level menu to enable/disable specific menus.
             //---------------------------------------------------------------------
-            RaiseSetAsActiveScreenEvent();
+            RaiseScreenActivated();
 
             // 1. Ensure no DrawingText is in edit mode.
             m_FrameServer.Metadata.AllDrawingTextToNormalMode();
@@ -2189,7 +2189,7 @@ namespace Kinovea.ScreenManager
         {
             OnPoke();
             StopPlaying(false);
-            OnPauseAsked();
+            RaisePauseAsked();
         }
 
         public void OnButtonPlay()
@@ -2207,7 +2207,7 @@ namespace Kinovea.ScreenManager
             if (isCurrentlyPlaying)
             {
                 StopPlaying();
-                OnPauseAsked();
+                RaisePauseAsked();
             }
             else
             {
@@ -2311,7 +2311,7 @@ namespace Kinovea.ScreenManager
                 return;
             
             StopPlaying();
-            OnPauseAsked();
+            RaisePauseAsked();
 
             // Update selection timestamps and labels.
             UpdateWorkingZoneDataFromControl();
@@ -2463,7 +2463,7 @@ namespace Kinovea.ScreenManager
             UpdateFramesMarkers();
 
             OnPoke();
-            OnSelectionChanged(true);
+            RaiseSelectionChanged(true);
 
             // Update current image and keyframe status (enabled and relative time code).
             //UpdateFramePrimarySelection();
@@ -3722,7 +3722,7 @@ namespace Kinovea.ScreenManager
         #region SurfaceScreen Events
         private void SurfaceScreen_MouseDown(object sender, MouseEventArgs e)
         {
-            RaiseSetAsActiveScreenEvent();
+            RaiseScreenActivated();
 
             if (!m_FrameServer.Loaded)
             {
@@ -3752,7 +3752,7 @@ namespace Kinovea.ScreenManager
             {
                 // MouseDown while playing: pause the video.
                 StopPlaying();
-                OnPauseAsked();
+                RaisePauseAsked();
             }
 
             m_FrameServer.Metadata.AllDrawingTextToNormalMode();
@@ -3799,7 +3799,7 @@ namespace Kinovea.ScreenManager
             {
                 // MouseDown while playing: Halt the video.
                 StopPlaying();
-                OnPauseAsked();
+                RaisePauseAsked();
             }
 
             HandToolDown();
@@ -4925,7 +4925,7 @@ namespace Kinovea.ScreenManager
         }
         public void InvalidateFromMenu()
         {
-            SetAsActiveScreen?.Invoke(this, EventArgs.Empty);
+            ScreenActivated?.Invoke(this, EventArgs.Empty);
 
             DoInvalidate();
         }
@@ -4953,7 +4953,7 @@ namespace Kinovea.ScreenManager
         {
             if (e.Button != MouseButtons.Right)
             {
-                RaiseSetAsActiveScreenEvent();
+                RaiseScreenActivated();
                 return;
             }
 
@@ -6446,7 +6446,7 @@ namespace Kinovea.ScreenManager
         private void BeforeAnnotationsFileOp()
         {
             StopPlaying();
-            OnPauseAsked();
+            RaisePauseAsked();
         }
 
         private void AfterAnnotationsFileOp()
@@ -6495,7 +6495,7 @@ namespace Kinovea.ScreenManager
         public void BeforeExportVideo()
         {
             StopPlaying();
-            OnPauseAsked();
+            RaisePauseAsked();
 
             // Force disable pre-scaling as we want to export at the original size.
             memoTimestamp = currentTimestamp;

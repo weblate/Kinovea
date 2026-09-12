@@ -61,6 +61,7 @@ namespace Kinovea.ScreenManager
         public EventHandler MultiDrawingItemDeleted;
         public EventHandler CameraCalibrationAsked;
         public EventHandler VideoFilterModified;
+        public EventHandler ExportabilityChanged; // kf or drawing added or removed.
         #endregion
 
         #region Properties
@@ -693,8 +694,8 @@ namespace Kinovea.ScreenManager
             SelectKeyframe(keyframe);
             UpdateTrajectoriesForKeyframes();
 
-            if (KeyframeAdded != null)
-                KeyframeAdded(this, new KeyframeEventArgs(keyframe.Id));
+            KeyframeAdded?.Invoke(this, new KeyframeEventArgs(keyframe.Id));
+            ExportabilityChanged?.Invoke(this, EventArgs.Empty);
         }
 
         /// <summary>
@@ -728,8 +729,8 @@ namespace Kinovea.ScreenManager
             keyframes.RemoveAll(k => k.Id == id);
             UpdateTrajectoriesForKeyframes();
 
-            if (KeyframeDeleted != null)
-                KeyframeDeleted(this, new KeyframeEventArgs(id));
+            KeyframeDeleted?.Invoke(this, new KeyframeEventArgs(id));
+            ExportabilityChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void SelectKeyframe(Keyframe keyframe)
@@ -1107,7 +1108,7 @@ namespace Kinovea.ScreenManager
             AfterDrawingCreation(drawing, keyframe.Timestamp);
             
             DrawingAdded?.Invoke(this, new DrawingEventArgs(drawing, keyframe.Id));
-            
+
             SelectDrawing(drawing, keyframe);
             SelectKeyframe(keyframe);
         }
@@ -1231,6 +1232,7 @@ namespace Kinovea.ScreenManager
             DeselectAll();
 
             DrawingDeleted?.Invoke(this, new EventArgs<Guid>(drawingId));
+            ExportabilityChanged?.Invoke(this, EventArgs.Empty);
         }
 
         public void DeleteMultiDrawingItem(AbstractMultiDrawing manager, Guid itemId)
@@ -1849,6 +1851,8 @@ namespace Kinovea.ScreenManager
                 DrawingDistortionGrid d = drawing as DrawingDistortionGrid;
                 d.LensCalibrationAsked += Drawing_LensCalibrationAsked;
             }
+
+            ExportabilityChanged?.Invoke(this, EventArgs.Empty);
         }
 
         private void BeforeDrawingDeletion(AbstractDrawing drawing)
