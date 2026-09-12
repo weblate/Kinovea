@@ -47,15 +47,29 @@ namespace Kinovea.ScreenManager
             saveFileDialog.FileName = Path.GetFileNameWithoutExtension(player.FrameServer.Metadata.VideoPath);
 
             if (saveFileDialog.ShowDialog() != DialogResult.OK || string.IsNullOrEmpty(saveFileDialog.FileName))
+            {
                 return;
+            }
 
             try
             {
                 Export(player.FrameServer.Metadata, saveFileDialog.FileName, format);
+
+                MessageBox.Show(
+                    "Spreadsheet exported successfully.",
+                    ScreenManagerLang.mnuExport_Spreadsheet, 
+                    MessageBoxButtons.OK, 
+                    MessageBoxIcon.Information);
             }
             catch (Exception e)
             {
                 log.ErrorFormat("Exception encountered while exporting to spreadsheet.", e);
+
+                MessageBox.Show(
+                    "Error while exporting spreadsheet.",
+                    ScreenManagerLang.mnuExport_Spreadsheet,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 

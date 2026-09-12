@@ -49,7 +49,7 @@ namespace Kinovea.ScreenManager
             SaveFileDialog saveFileDialog = new SaveFileDialog();
             saveFileDialog.Title = "Export document";
             saveFileDialog.RestoreDirectory = true;
-            bool needsPandoc = format != DocumentExportFormat.Mardown;
+            bool needsPandoc = format != DocumentExportFormat.Markdown;
             switch (format)
             {
                 case DocumentExportFormat.ODT:
@@ -58,7 +58,7 @@ namespace Kinovea.ScreenManager
                 case DocumentExportFormat.DOCX:
                     saveFileDialog.Filter = "Microsoft Word|*.docx";
                     break;
-                case DocumentExportFormat.Mardown:
+                case DocumentExportFormat.Markdown:
                 default:
                     saveFileDialog.Filter = "Markdown|*.md";
                     break;
@@ -72,6 +72,13 @@ namespace Kinovea.ScreenManager
                 {
                     // Raise an error box telling the user to install Pandoc.
                     log.ErrorFormat("Document export: pandoc not found.");
+
+                    MessageBox.Show(
+                        "Pandoc utility not found",
+                        ScreenManagerLang.mnuExport_Document,
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+
                     return;
                 }
             }
@@ -80,15 +87,29 @@ namespace Kinovea.ScreenManager
             saveFileDialog.FileName = Path.GetFileNameWithoutExtension(player.FrameServer.Metadata.VideoPath);
 
             if (saveFileDialog.ShowDialog() != DialogResult.OK || string.IsNullOrEmpty(saveFileDialog.FileName))
+            {
                 return;
+            }
 
             try
             {
                 Export(saveFileDialog.FileName, format, player.FrameServer.Metadata, player);
+
+                MessageBox.Show(
+                        "Document exported successfully.",
+                        ScreenManagerLang.mnuExport_Document,
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
             }
             catch (Exception e)
             {
                 log.ErrorFormat("Exception encountered while exporting document.", e);
+
+                MessageBox.Show(
+                        "Error while exporting document.",
+                        ScreenManagerLang.mnuExport_Document,
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
             }
         }
 
@@ -132,6 +153,10 @@ namespace Kinovea.ScreenManager
             Thread.CurrentThread.Name = "DocumentExporter";
             BackgroundWorker worker = sender as BackgroundWorker;
             VideoExportSettings s = e.Argument as VideoExportSettings;
+            if (s.TotalFrameCount == 0)
+            {
+                return;
+            }
 
             //-----------------
             // Markdown export.
@@ -175,7 +200,7 @@ namespace Kinovea.ScreenManager
             ExporterMarkdown exporterMarkdown = new ExporterMarkdown();
             exporterMarkdown.Export(s.File, filePathsRelative, metadata);
 
-            if (format == DocumentExportFormat.Mardown)
+            if (format == DocumentExportFormat.Markdown)
                 return;
 
             //-----------------
@@ -233,7 +258,7 @@ namespace Kinovea.ScreenManager
                     pathFinal = string.Format("{0}.docx", pathWithoutExtension);
                     arguments = string.Format("-f markdown -t docx \"{0}\" -o \"{1}\"", pathMarkdown, pathFinal);
                     break;
-                case DocumentExportFormat.Mardown:
+                case DocumentExportFormat.Markdown:
                 default:
                     break;
             }

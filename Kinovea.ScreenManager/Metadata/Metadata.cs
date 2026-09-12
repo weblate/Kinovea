@@ -290,14 +290,13 @@ namespace Kinovea.ScreenManager
         }
 
         /// <summary>
-        /// Whether there are any annotations that can be drawn on top of images.
+        /// Whether there are any annotations that can be drawn on top of images,
+        /// or saved to document or spreadsheet.
         /// </summary>
         public bool HasVisibleData
         {
             get
             {
-                // This is used to know if there is anything to draw on the images when saving
-                // and to know if we should enable the "Export spreadsheet" menu.
                 // All objects should be taken into account here, even those
                 // that we currently don't save to the .kva but only draw on the image.
                 return keyframes.Count > 0 ||

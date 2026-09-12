@@ -10,6 +10,6 @@ namespace Kinovea.ScreenManager
     {
         ODT,
         DOCX,
-        Mardown
+        Markdown
     }
 }

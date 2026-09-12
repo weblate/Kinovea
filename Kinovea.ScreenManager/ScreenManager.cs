@@ -382,7 +382,7 @@ namespace Kinovea.ScreenManager
             mnuExportMarkdown.Image = Properties.Resources.file_markdown;
             mnuExportODT.Click += (s, e) => ExportDocument(DocumentExportFormat.ODT);
             mnuExportDOCX.Click += (s, e) => ExportDocument(DocumentExportFormat.DOCX);
-            mnuExportMarkdown.Click += (s, e) => ExportDocument(DocumentExportFormat.Mardown);
+            mnuExportMarkdown.Click += (s, e) => ExportDocument(DocumentExportFormat.Markdown);
             mnuExportDocument.DropDownItems.AddRange(new ToolStripItem[] {
                 mnuExportODT,
                 mnuExportDOCX,
@@ -1321,8 +1321,8 @@ namespace Kinovea.ScreenManager
                     mnuUnloadAnnotations.Enabled = true;
                     mnuExportVideo.Enabled = true;
                     mnuExportImage.Enabled = true;
-                    mnuExportSpreadsheet.Enabled = player.FrameServer.Metadata.HasVisibleData;
                     mnuExportDocument.Enabled = true;
+                    mnuExportSpreadsheet.Enabled = true;
 
                     ConfigureSaveMenu(activeScreen);
                         
@@ -1389,8 +1389,8 @@ namespace Kinovea.ScreenManager
 
                     mnuExportVideo.Enabled = false;
                     mnuExportImage.Enabled = false;
-                    mnuExportSpreadsheet.Enabled = false;
                     mnuExportDocument.Enabled = false;
+                    mnuExportSpreadsheet.Enabled = false;
 
                     // Edit
                     HistoryMenuManager.SwitchContext(activeScreen.HistoryStack);
@@ -1450,8 +1450,8 @@ namespace Kinovea.ScreenManager
                 mnuUnloadAnnotations.Enabled = false;
                 mnuExportVideo.Enabled = false;
                 mnuExportImage.Enabled = false;
-                mnuExportSpreadsheet.Enabled = false;
                 mnuExportDocument.Enabled = false;
+                mnuExportSpreadsheet.Enabled = false;
                 toolSave.Enabled = false;
 
                 ConfigureSaveMenu(activeScreen);
@@ -2333,6 +2333,16 @@ namespace Kinovea.ScreenManager
             if (player == null)
                 return;
 
+            if (!player.FrameServer.Metadata.HasVisibleData)
+            {
+                MessageBox.Show(
+                    "No data to export.",
+                    ScreenManagerLang.mnuExport_Document,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             DocumentExporter exporter = new DocumentExporter();
             exporter.Export(format, player);
         }
@@ -2341,8 +2351,19 @@ namespace Kinovea.ScreenManager
         {
             DoStopPlaying();
             PlayerScreen player = activeScreen as PlayerScreen;
-            if (player == null || !player.FrameServer.Metadata.HasVisibleData)
+            if (player == null)
                 return;
+            
+
+            if (!player.FrameServer.Metadata.HasVisibleData)
+            {
+                MessageBox.Show(
+                    "No data to export.",
+                    ScreenManagerLang.mnuExport_Spreadsheet,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
 
             SpreadsheetExporter exporter = new SpreadsheetExporter();
             exporter.Export(format, player);
